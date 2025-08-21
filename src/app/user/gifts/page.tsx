@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,11 +17,19 @@ import { Button } from '@/components/ui/button';
 import { Copy, Gift as GiftIcon, PlusCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { processGift, getGiftbitBrands } from './actions';
 
+
+interface GiftbitBrand {
+    code: string;
+    name: string;
+    denominations_in_cents?: number[];
+    min_price_in_cents?: number;
+    max_price_in_cents?: number;
+}
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
@@ -30,12 +37,6 @@ const giftFormSchema = z.object({
   brand: z.string().min(1, "Please select a brand."),
   amount: z.string().min(1, "Please enter an amount."),
 });
-
-interface GiftbitBrand {
-    code: string;
-    name: string;
-    // Add other fields if needed, like image, denominations etc.
-}
 
 
 export default function GiftsPage() {
@@ -47,6 +48,7 @@ export default function GiftsPage() {
   
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
+  const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
 
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
@@ -58,6 +60,29 @@ export default function GiftsPage() {
       amount: '',
     },
   });
+  
+  const handleBrandChange = (brandCode: string) => {
+    const brand = brands.find(b => b.code === brandCode);
+    setSelectedBrand(brand || null);
+    form.setValue('brand', brandCode);
+    form.setValue('amount', ''); // Reset amount when brand changes
+    form.clearErrors('amount');
+  };
+  
+  const getAmountDescription = () => {
+    if (!selectedBrand) return "Select a brand to see amount requirements.";
+
+    if (selectedBrand.denominations_in_cents?.length) {
+      const denominations = selectedBrand.denominations_in_cents.map(d => `$${(d / 100).toFixed(2)}`).join(', ');
+      return `Allowed amounts: ${denominations}`;
+    }
+    if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
+        const min = (selectedBrand.min_price_in_cents / 100).toFixed(2);
+        const max = (selectedBrand.max_price_in_cents / 100).toFixed(2);
+      return `Amount must be between $${min} and $${max}.`;
+    }
+    return null;
+  }
 
   const fetchGifts = useCallback(() => {
     if (!user) return;
@@ -131,6 +156,21 @@ export default function GiftsPage() {
         return;
     }
     const amountInCents = Math.round(parseFloat(values.amount) * 100);
+
+    // Dynamic validation check
+    if (selectedBrand) {
+        if (selectedBrand.denominations_in_cents?.length) {
+            if (!selectedBrand.denominations_in_cents.includes(amountInCents)) {
+                form.setError('amount', { message: `Amount must be one of the allowed denominations.` });
+                return;
+            }
+        } else if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
+            if (amountInCents < selectedBrand.min_price_in_cents || amountInCents > selectedBrand.max_price_in_cents) {
+                 form.setError('amount', { message: `Amount is outside the allowed range.` });
+                 return;
+            }
+        }
+    }
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
         toast({
@@ -162,6 +202,7 @@ export default function GiftsPage() {
         });
         setIsFormOpen(false);
         form.reset();
+        setSelectedBrand(null);
 
         // Trigger background processing
         await processGift(docRef.id);
@@ -186,7 +227,13 @@ export default function GiftsPage() {
                     Create and track digital gift cards for your clients.
                 </p>
             </div>
-             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+             <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
+                 setIsFormOpen(isOpen);
+                 if (!isOpen) {
+                     form.reset();
+                     setSelectedBrand(null);
+                 }
+             }}>
                 <DialogTrigger asChild>
                     <Button className="w-full sm:w-auto">
                         <PlusCircle className="mr-2"/> Create Gift
@@ -229,7 +276,7 @@ export default function GiftsPage() {
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Brand</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={loadingBrands}>
+                                    <Select onValueChange={handleBrandChange} value={field.value} disabled={loadingBrands}>
                                         <FormControl>
                                             <SelectTrigger>
                                             <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
@@ -258,8 +305,9 @@ export default function GiftsPage() {
                                 <FormItem>
                                     <FormLabel>Amount ($)</FormLabel>
                                     <FormControl>
-                                        <Input type="number" placeholder="e.g., 25.00" {...field} />
+                                        <Input type="number" placeholder="e.g., 25.00" {...field} disabled={!selectedBrand} />
                                     </FormControl>
+                                    <FormDescription>{getAmountDescription()}</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -346,8 +394,3 @@ export default function GiftsPage() {
     </div>
     </>
   );
-}
-
-
-
-    
