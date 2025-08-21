@@ -32,12 +32,12 @@ const giftFormSchema = z.object({
   customAmount: z.string().optional(),
 }).refine(data => {
     if (data.amount === 'custom') {
-        const customAmountValue = parseFloat(data.customAmount || '0');
-        return data.customAmount && !isNaN(customAmountValue) && customAmountValue > 0 && customAmountValue <= 100;
+        // Ensure customAmount is a valid number string if amount is custom
+        return !!data.customAmount && !isNaN(parseFloat(data.customAmount));
     }
     return true;
 }, {
-    message: "Please enter a valid custom amount between $0.01 and $100.00.",
+    message: "A valid custom amount is required.",
     path: ['customAmount'],
 });
 
@@ -119,9 +119,12 @@ export default function GiftsPage() {
         return;
     }
 
-    const amountInCents = values.amount === 'custom' 
-        ? Math.round(parseFloat(values.customAmount || '0') * 100) 
-        : parseInt(values.amount, 10);
+    let amountInCents: number;
+    if (values.amount === 'custom') {
+        amountInCents = Math.round(parseFloat(values.customAmount || "0") * 100);
+    } else {
+        amountInCents = parseInt(values.amount, 10);
+    }
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
         toast({
