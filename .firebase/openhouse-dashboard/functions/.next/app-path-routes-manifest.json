@@ -1,0 +1,20 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/test/route": "/api/test",
+  "/favicon.ico/route": "/favicon.ico",
+  "/page": "/",
+  "/forgot-password/page": "/forgot-password",
+  "/signup/page": "/signup",
+  "/signup/profile/page": "/signup/profile",
+  "/v/[userId]/page": "/v/[userId]",
+  "/user/billing/page": "/user/billing",
+  "/user/gifts/page": "/user/gifts",
+  "/user/feedback-forms/page": "/user/feedback-forms",
+  "/user/dashboard/page": "/user/dashboard",
+  "/user/open-house/[id]/feedback/page": "/user/open-house/[id]/feedback",
+  "/user/my-leads/page": "/user/my-leads",
+  "/user/my-qr-code/page": "/user/my-qr-code",
+  "/user/open-house/[id]/page": "/user/open-house/[id]",
+  "/user/profile/page": "/user/profile",
+  "/admin/page": "/admin"
+}

@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service firebase.storage {
+  // Rules for the default bucket containing public brand assets
+  match /b/openhouse-dashboard.firebasestorage.app/o {
+    match /{allPaths=**} {
+      allow read;
+      allow write: if false;
+    }
+  }
+
+  // Rules for the bucket containing user-uploaded files
+  match /b/rmoh-user-files/o {
+    // Allow public read access to all files in this bucket
+    match /{allPaths=**} {
+      allow read;
+    }
+    
+    // Restrict write access to authenticated users for their own files
+    match /open-house-images/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /profile-pictures/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /personal-logos/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /brokerage-logos/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

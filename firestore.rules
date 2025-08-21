@@ -1,0 +1,67 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Users can read/write their own profile, but only admins can change the isAdmin flag or balance
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId || isAdmin();
+      allow create: if request.auth.uid == userId && request.resource.data.email == request.auth.token.email;
+      allow update: if request.auth.uid == userId && !(request.resource.data.isAdmin is bool && request.resource.data.isAdmin != resource.data.isAdmin) && !(request.resource.data.availableBalance is number && request.resource.data.availableBalance != resource.data.availableBalance);
+      allow delete: if isAdmin();
+      
+      // Admins can update any profile
+      allow update: if isAdmin();
+    }
+    
+    // Settings can only be read/written by admins
+    match /settings/{docId} {
+        allow read: if request.auth != null; // All authenticated users can read settings
+        allow write: if isAdmin();
+    }
+
+    // Users can manage their own open houses
+    match /openHouses/{houseId} {
+      allow read, write: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Users can manage their own leads
+    match /leads/{leadId} {
+      allow read, write: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Users can manage their own gifts
+    match /gifts/{giftId} {
+      allow read, write: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+
+    // Custom forms can only be managed by their owner
+    match /feedbackForms/{formId} {
+        allow read, write: if resource.data.type == 'custom' && request.auth.uid == resource.data.userId;
+        allow create: if request.resource.data.type == 'custom' && request.auth.uid == request.resource.data.userId;
+        
+        // Global forms can be read by any authenticated user
+        allow read: if resource.data.type == 'global' && request.auth != null;
+        
+        // Global forms can only be created/edited/deleted by an admin
+        allow write: if request.resource.data.type == 'global' && isAdmin();
+    }
+    
+    // Feedback submissions can be created by anyone (public link)
+    // but can only be read by the user who owns the open house
+    match /feedbackSubmissions/{submissionId} {
+      allow create: if true; // Public can submit
+      allow read: if request.auth.uid == resource.data.userId;
+      allow update, delete: if false; // Nobody can update/delete submissions
+    }
+  }
+}

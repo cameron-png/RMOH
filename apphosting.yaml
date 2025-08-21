@@ -1,0 +1,43 @@
+# Settings to manage and configure a Firebase App Hosting backend.
+# This file defines runtime settings and environment variables for your app.
+# For more information, see: https://firebase.google.com/docs/app-hosting/configure
+
+# Configuration settings for the Cloud Run service that powers your backend.
+runConfig:
+  # Sets the maximum number of instances for your backend.
+  # This can help control costs and resource usage.
+  maxInstances: 1 # For example, limiting to 1 instance. You can adjust this.
+  # You can also include other Cloud Run settings here, like:
+  # minInstances: 0  # Minimum number of instances to keep warm (can affect cost)
+  # cpu: 1           # Number of CPU cores allocated per instance
+  # memoryMiB: 512   # Memory allocated per instance in MiB
+
+# Defines environment variables for your application.
+# These variables can be accessed by your app during build and/or runtime.
+# This 'env' key must be at the same level of indentation as 'runConfig'.
+env:
+  # Variables whose values are fetched securely from Google Cloud Secret Manager.
+  # The 'availability' property is implicitly RUNTIME for secrets and should not be specified.
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY # References the secret named 'GEMINI_API_KEY' in Secret Manager
+
+  - variable: SMTP_PASS
+    secret: SMTP_PASS # References the secret named 'SMTP_PASS' in Secret Manager
+
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    secret: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY # References the secret named 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'
+
+  - variable: GIFTBIT_API_KEY
+    secret: GIFTBIT_API_KEY # References the secret named 'GIFTBIT_API_KEY'
+
+  # Optional: If you explicitly need FIREBASE_CONFIG or FIREBASE_WEBAPP_CONFIG
+  # to be injected for automatic SDK initialization and are overriding it.
+  # Firebase often injects these automatically if not specified.
+  # - variable: FIREBASE_WEBAPP_CONFIG
+  #   value: '{"apiKey":"myApiKey","appId":"app:123","authDomain":"project-id.firebaseapp.com",...}'
+  #   availability: [RUNTIME]
+
+  # Optional: Example of an environment variable available during both build and runtime.
+  # - variable: MY_APP_VERSION
+  #   value: "1.0.0"
+  #   availability: [BUILD, RUNTIME]
