@@ -3,8 +3,8 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { createGiftbitLink, listBrands } from '@/lib/giftbit';
-import { Gift } from '@/lib/types';
+import { createGiftbitLink } from '@/lib/giftbit';
+import type { Gift } from '@/lib/types';
 
 const createGiftSchema = z.object({
   brandCode: z.string().min(1, "Please select a brand."),
@@ -45,19 +45,16 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
             id: giftId,
         });
         
+        // The API returns the link object directly. Check for its properties.
         if (!giftbitResponse || !giftbitResponse.short_id || !giftbitResponse.claim_url) {
              throw new Error("Received an invalid or empty response from the Giftbit API.");
         }
-        
-        // Find the brand name from the list of brands for display purposes
-        const brands = await listBrands();
-        const brandName = brands.find(b => b.brand_code === brandCode)?.name || brandCode;
         
         const createdGift: Gift = {
             id: giftId,
             userId: '', // This is a transient gift, not saved to DB
             brandCode: brandCode,
-            brandName: brandName,
+            brandName: giftbitResponse.brands[0]?.name || brandCode,
             amountInCents,
             status: 'created',
             shortId: giftbitResponse.short_id,
