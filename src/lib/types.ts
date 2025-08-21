@@ -110,14 +110,15 @@ export interface GiftbitBrand {
 export interface Gift {
     id: string;
     userId: string;
-    recipientName: string;
-    recipientEmail: string;
+    recipientName?: string;
+    recipientEmail?: string;
     brandCode: string;
     brandName: string;
     amountInCents: number;
-    status: 'processing' | 'claimed' | 'delivered' | 'failed';
+    status: 'created' | 'sent' | 'claimed' | 'failed';
     shortId: string;
     claimUrl: string;
     createdAt: Timestamp;
+    sentAt?: Timestamp;
     errorMessage?: string;
 }
