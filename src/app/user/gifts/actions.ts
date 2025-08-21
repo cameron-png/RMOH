@@ -46,7 +46,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
         const giftbitResponse = await createGiftbitLink(giftPayload);
         
-        if (!giftbitResponse || !giftbitResponse.direct_link) {
+        if (!giftbitResponse || !giftbitResponse.short_id || !giftbitResponse.claim_url) {
              throw new Error("Received an invalid or empty response from Giftbit API.");
         }
         
@@ -56,8 +56,8 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
             brandCode: brandCode,
             amountInCents,
             status: 'created',
-            shortId: giftbitResponse.direct_link.short_id,
-            claimUrl: giftbitResponse.direct_link.claim_url,
+            shortId: giftbitResponse.short_id,
+            claimUrl: giftbitResponse.claim_url,
             createdAt: new Date(), 
         };
         
