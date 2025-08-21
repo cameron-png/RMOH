@@ -38,13 +38,11 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
     const giftId = uuidv4();
 
     try {
-        const giftPayload = {
+        const giftbitResponse = await createGiftbitLink({
             brand_codes: [brandCode],
             price_in_cents: amountInCents,
             id: giftId,
-        };
-
-        const giftbitResponse = await createGiftbitLink(giftPayload);
+        });
         
         if (!giftbitResponse || !giftbitResponse.short_id || !giftbitResponse.claim_url) {
              throw new Error("Received an invalid or empty response from Giftbit API.");
