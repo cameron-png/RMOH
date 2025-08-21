@@ -103,6 +103,13 @@ export function DashboardSidebar() {
             </Link>
           </SidebarMenuItem>
            <SidebarMenuItem>
+            <Link href="/user/gifts" onClick={handleLinkClick}>
+              <SidebarMenuButton size="lg" isActive={isActive('/user/gifts')}>
+                <Gift /><span>Gifts</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
             <Link href="/user/billing" onClick={handleLinkClick}>
               <SidebarMenuButton size="lg" isActive={isActive('/user/billing')}>
                 <CreditCard /><span>Billing</span>
