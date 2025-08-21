@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { createGift as createGiftbitLink, listBrands, GiftbitBrand } from '@/lib/giftbit';
+import { createGift as createGiftbitLink } from '@/lib/giftbit';
 import { Gift } from '@/lib/types';
 
 const createGiftSchema = z.object({
@@ -18,12 +18,6 @@ export type CreateGiftFormState = {
     message: string;
     gift?: Gift;
 };
-
-
-export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
-    return await listBrands();
-}
-
 
 export async function createGiftLink(prevState: CreateGiftFormState, formData: FormData): Promise<CreateGiftFormState> {
     const validatedFields = createGiftSchema.safeParse({
@@ -52,9 +46,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         
         const createdGift: Gift = {
             id: giftId,
-            userId: '', 
-            brandCode: 'Full Catalog', // Indicate that this is a full catalog gift
-            brandName: 'Any Brand',
+            userId: '', // This is a transient gift, not yet saved to DB for a user
             amountInCents,
             status: 'created',
             shortId: giftbitResponse.short_id,

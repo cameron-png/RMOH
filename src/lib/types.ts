@@ -112,8 +112,8 @@ export interface Gift {
     userId: string;
     recipientName?: string;
     recipientEmail?: string;
-    brandCode: string;
-    brandName: string;
+    brandCode?: string; // Optional, as it won't exist for Full Catalog gifts
+    brandName?: string; // Optional
     amountInCents: number;
     status: 'created' | 'sent' | 'claimed' | 'failed';
     shortId: string;
