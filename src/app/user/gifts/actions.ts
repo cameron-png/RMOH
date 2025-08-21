@@ -6,8 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createGiftbitLink, getGiftbitLink } from '@/lib/giftbit';
 import type { Gift, UserProfile } from '@/lib/types';
 import { sleep } from '@/lib/utils';
-import { addDoc, collection, doc, setDoc, Timestamp, updateDoc, runTransaction } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+import { Timestamp, runTransaction } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server';
 
@@ -62,7 +61,7 @@ export async function createGift(formData: FormData) {
             transaction.update(userDocRef, { availableBalance: newBalance });
         });
 
-        // 1. Immediately create a "processing" gift in Firestore
+        // 1. Immediately create a "processing" gift in Firestore using the Admin SDK
         const newGift: Omit<Gift, 'id'> = {
             userId: userId,
             brandCode: brandCode,
@@ -71,7 +70,7 @@ export async function createGift(formData: FormData) {
             status: 'processing',
             createdAt: Timestamp.now(), 
         };
-        await setDoc(doc(db, 'gifts', giftId), newGift);
+        await adminDb.collection('gifts').doc(giftId).set(newGift);
         revalidatePath('/user/gifts');
 
         // Trigger background processing, but don't wait for it
@@ -89,7 +88,7 @@ export async function createGift(formData: FormData) {
 }
 
 async function processGiftInBackground(giftId: string, brandCode: string, amountInCents: number) {
-    const giftDocRef = doc(db, 'gifts', giftId);
+    const giftDocRef = adminDb.collection('gifts').doc(giftId);
     try {
         await createGiftbitLink({
             brand_codes: [brandCode],
@@ -128,11 +127,11 @@ async function processGiftInBackground(giftId: string, brandCode: string, amount
             claimUrl: linkDetails.claim_url,
         };
         
-        await updateDoc(giftDocRef, giftDataToUpdate);
+        await giftDocRef.update(giftDataToUpdate);
         
     } catch (error: any) {
         console.error(`Error processing gift ${giftId} in background:`, error);
-        await updateDoc(giftDocRef, {
+        await giftDocRef.update({
             status: 'failed',
             errorMessage: error.message || 'An unexpected error occurred during processing.'
         });
