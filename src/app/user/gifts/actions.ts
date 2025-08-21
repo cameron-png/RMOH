@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { createGift as createGiftbitLink, listBrands, GiftbitBrand } from '@/lib/giftbit';
 import { Gift } from '@/lib/types';
-import { revalidatePath } from 'next/cache';
 
 const createGiftSchema = z.object({
   brandCode: z.string().min(1, "Please select a brand."),
@@ -46,7 +45,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
     try {
         const giftPayload = {
-            brand_code: brandCode,
+            brand_code: brandCode, // Use singular 'brand_code'
             price_in_cents: amountInCents,
             id: giftId,
         };
