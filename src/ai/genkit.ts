@@ -16,5 +16,4 @@ export const ai = genkit({
   plugins: [firebase(), googleAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
-  logLevel: 'debug', // Set to debug for more detailed logging during development
 });
