@@ -81,9 +81,9 @@ interface CreateGiftPayload {
 }
 
 export async function createGift(payload: CreateGiftPayload) {
-    const response = await fetchGiftbitAPI('links', {
+    const response = await fetchGiftbitAPI('direct_links', {
         method: 'POST',
         body: payload,
     });
-    return response.link;
+    return response.direct_link;
 }
