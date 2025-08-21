@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,15 +14,15 @@ export default function GiftsPage() {
         </div>
         <Card>
             <CardHeader>
-                <CardTitle>Gift Log</CardTitle>
-                <CardDescription>A record of all the gift links you've created.</CardDescription>
+                <CardTitle>Gifts</CardTitle>
+                <CardDescription>This feature is not yet available.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="text-center py-16 border-2 border-dashed rounded-lg">
                     <Gift className="mx-auto h-12 w-12 text-muted-foreground" />
                     <h3 className="text-xl font-medium mt-4">Feature not available</h3>
                     <p className="text-muted-foreground mt-2">
-                        The gift creation feature is temporarily disabled.
+                        This feature is temporarily disabled.
                     </p>
                 </div>
             </CardContent>
