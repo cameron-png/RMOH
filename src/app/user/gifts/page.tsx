@@ -5,11 +5,11 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Copy, Loader2, Gift as GiftIcon, AlertCircle } from 'lucide-react';
+import { PlusCircle, Copy, Loader2, Gift as GiftIcon } from 'lucide-react';
 import { createGift } from './actions';
 import type { Gift, GiftbitBrand } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { listBrands } from '@/lib/giftbit';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
@@ -36,6 +36,7 @@ export default function GiftsPage() {
             const brandList = await listBrands();
             setBrands(brandList);
         } catch (error) {
+            console.error("Error fetching brands:", error);
             toast({
                 title: 'Error Fetching Brands',
                 description: 'Could not load the list of available gift card brands.',

@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createGiftbitLink, getGiftbitLink } from '@/lib/giftbit';
 import type { Gift, UserProfile } from '@/lib/types';
 import { sleep } from '@/lib/utils';
-import { addDoc, collection, doc, Timestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server';
@@ -39,13 +39,11 @@ export async function createGift(formData: FormData) {
     }
     
     const { brandCode, amountInCents, userId } = validatedFields.data;
-    
     const userDocRef = adminDb.collection('users').doc(userId);
 
     try {
         const giftId = uuidv4();
-        const giftDocRef = doc(db, 'gifts', giftId);
-
+        
         // Balance Check
         const userDoc = await userDocRef.get();
         if (!userDoc.exists) {
@@ -62,12 +60,12 @@ export async function createGift(formData: FormData) {
         const newGift: Omit<Gift, 'id'> = {
             userId: userId,
             brandCode: brandCode,
-            brandName: 'Unknown', // Will be updated later
+            brandName: 'Processing...',
             amountInCents,
             status: 'processing',
             createdAt: Timestamp.now(), 
         };
-        await addDoc(collection(db, 'gifts'), { ...newGift, id: giftId });
+        await setDoc(doc(db, 'gifts', giftId), newGift);
         revalidatePath('/user/gifts');
 
         // Trigger background processing, but don't wait for it
@@ -87,14 +85,13 @@ export async function createGift(formData: FormData) {
 async function processGiftInBackground(giftId: string, brandCode: string, amountInCents: number) {
     const giftDocRef = doc(db, 'gifts', giftId);
     try {
-        // Step 1: POST to create the gift order with our unique ID.
         await createGiftbitLink({
             brand_codes: [brandCode],
             price_in_cents: amountInCents,
             id: giftId,
         });
 
-        // Step 2: Poll for the generated link details using the same ID.
+        // Poll for the generated link details using the same ID.
         let giftbitResponse;
         const maxRetries = 10;
         const retryDelay = 3000; // 3 seconds
@@ -104,7 +101,7 @@ async function processGiftInBackground(giftId: string, brandCode: string, amount
             try {
                 giftbitResponse = await getGiftbitLink(giftId);
                 if (giftbitResponse?.links?.[0]) {
-                    break; // Success, exit loop
+                    break; 
                 }
             } catch (error) {
                 console.log(`Polling attempt ${i + 1} for gift ${giftId} failed, retrying...`);
@@ -125,7 +122,6 @@ async function processGiftInBackground(giftId: string, brandCode: string, amount
             claimUrl: linkDetails.claim_url,
         };
         
-        // 3. Update the gift document with the details
         await updateDoc(giftDocRef, giftDataToUpdate);
         
     } catch (error: any) {

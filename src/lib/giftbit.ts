@@ -28,8 +28,9 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
   try {
     const response = await fetch(url, {
       method,
-      headers, // This was missing before
+      headers,
       body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store', // Ensure fresh data for brands
     });
     
     if (!response.ok) {
@@ -44,7 +45,6 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
         throw new Error(`Giftbit API request failed: ${errorDetails}`);
     }
     
-    // For POST requests that might not have a body, return a success indicator.
     if (response.status === 204) {
         return { success: true };
     }
@@ -52,7 +52,6 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
     try {
         return await response.json();
     } catch (e) {
-        // Handle cases where POST returns 200 OK with no body
         return { success: true };
     }
 
@@ -97,7 +96,6 @@ interface CreateGiftPayload {
     brand_codes: string[];
 }
 
-// Step 1: POST the order
 export async function createGiftbitLink(payload: CreateGiftPayload) {
     return await fetchGiftbitAPI('direct_links', {
         method: 'POST',
@@ -105,7 +103,6 @@ export async function createGiftbitLink(payload: CreateGiftPayload) {
     });
 }
 
-// Step 2: GET the created link
 export async function getGiftbitLink(id: string) {
     return await fetchGiftbitAPI(`links/${id}`);
 }
