@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift as GiftIcon } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -357,7 +357,6 @@ export default function AdminPage() {
                         <TableHead>Address</TableHead>
                         <TableHead className="hidden sm:table-cell">Created By</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Gift Automation</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -398,23 +397,10 @@ export default function AdminPage() {
                                     <Badge variant="outline">Inactive</Badge>
                                 )}
                           </TableCell>
-                          <TableCell>
-                            {house.giftAutomation?.enabled ? (
-                                <div className="flex items-center gap-2">
-                                    <GiftIcon className="h-4 w-4 text-green-600" />
-                                    <span className="font-medium text-sm">
-                                        ${((house.giftAutomation.amountInCents || 0) / 100).toFixed(2)}{' '}
-                                        <span className="capitalize">{house.giftAutomation.brandCode}</span>
-                                    </span>
-                                </div>
-                            ) : (
-                                <Badge variant="secondary">Disabled</Badge>
-                            )}
-                          </TableCell>
                         </TableRow>
                       )) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
+                          <TableCell colSpan={4} className="h-24 text-center">
                            No open houses found.
                           </TableCell>
                         </TableRow>

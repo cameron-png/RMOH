@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Address {
@@ -18,6 +19,11 @@ export interface OpenHouse {
     imageUrl?: string;
     isActive?: boolean;
     feedbackFormId?: string;
+    giftAutomation?: {
+        enabled: boolean;
+        brandCode: string;
+        amountInCents: number;
+    }
 }
 
 export interface Lead {
@@ -91,30 +97,4 @@ export interface FeedbackSubmission {
 
 export interface AppSettings {
     defaultGlobalFormId?: string;
-}
-
-export interface GiftbitBrand {
-    brand_code: string;
-    name: string;
-    image_url: string;
-    disclaimer: string;
-    description: string;
-    terms: string;
-    value_type: 'VARIABLE' | 'FIXED';
-    min_value_in_cents: number | null;
-    max_value_in_cents: number | null;
-    face_value_in_cents: number | null;
-}
-
-export interface Gift {
-    id: string;
-    userId: string;
-    brandCode: string;
-    brandName: string;
-    amountInCents: number;
-    status: 'processing' | 'available' | 'failed';
-    shortId?: string;
-    claimUrl?: string;
-    createdAt: Timestamp;
-    errorMessage?: string;
 }
