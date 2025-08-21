@@ -4,10 +4,9 @@
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { doc, runTransaction, Timestamp, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { adminDb } from '@/lib/firebase/server';
+import { adminDb, adminAuth } from '@/lib/firebase/server';
 import { GiftbitBrand, createGift, listBrands } from '@/lib/giftbit';
 import { UserProfile, Gift } from '@/lib/types';
-import { getTokens } from 'next-firebase-auth-edge';
 import { cookies } from 'next/headers';
 
 
@@ -30,27 +29,28 @@ export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
     return await listBrands();
 }
 
-async function getCurrentUser() {
-    const tokens = await getTokens(cookies(), {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-        cookieName: 'AuthToken',
-        cookieSignatureKeys: ['secret1', 'secret2'],
-        serviceAccount: {
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-            privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-        },
-    });
-    if (!tokens) return null;
+async function getCurrentUser(): Promise<(UserProfile & { uid: string }) | null> {
+    const sessionCookie = cookies().get('AuthToken')?.value;
+    if (!sessionCookie) {
+        return null;
+    }
 
-    const userDoc = await adminDb.collection('users').doc(tokens.uid).get();
-    if (!userDoc.exists) return null;
-
-    return { 
-        uid: tokens.uid, 
-        ...userDoc.data() 
-    } as UserProfile & { uid: string };
+    try {
+        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+        const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
+        if (!userDoc.exists()) {
+            return null;
+        }
+        return {
+            uid: decodedToken.uid,
+            ...userDoc.data(),
+        } as UserProfile & { uid: string };
+    } catch (error) {
+        console.error("Error verifying session cookie:", error);
+        return null;
+    }
 }
+
 
 export async function sendGift(prevState: SendGiftFormState, formData: FormData): Promise<SendGiftFormState> {
     const currentUser = await getCurrentUser();

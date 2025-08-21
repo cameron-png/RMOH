@@ -82,9 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const fullUser = await fetchUserAndCounts(firebaseUser);
         setUser(fullUser);
+        const idToken = await firebaseUser.getIdToken();
+        // Set cookie for server-side authentication
+        await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${idToken}`
+            }
+        });
       } else {
         setUser(null);
         setAvailableBalance(0);
+         await fetch('/api/auth/logout', { method: 'POST' });
       }
       setLoading(false);
     });
