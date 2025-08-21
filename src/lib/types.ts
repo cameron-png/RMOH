@@ -110,15 +110,12 @@ export interface GiftbitBrand {
 export interface Gift {
     id: string;
     userId: string;
-    recipientName?: string;
-    recipientEmail?: string;
-    brandCode?: string; // Optional, as it won't exist for Full Catalog gifts
-    brandName?: string; // Optional
+    brandCode: string;
+    brandName: string;
     amountInCents: number;
-    status: 'created' | 'sent' | 'claimed' | 'failed';
+    status: 'created' | 'sent' | 'claimed' | 'failed' | 'processing';
     shortId: string;
     claimUrl: string;
-    createdAt: any; // Can be Timestamp or Date
-    sentAt?: any; // Can be Timestamp or Date
+    createdAt: Timestamp;
     errorMessage?: string;
 }

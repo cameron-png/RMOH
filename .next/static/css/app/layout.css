@@ -958,6 +958,9 @@ video {
 .h-svh {
   height: 100svh;
 }
+.h-3 {
+  height: 0.75rem;
+}
 .max-h-96 {
   max-height: 24rem;
 }
@@ -1068,6 +1071,12 @@ video {
 }
 .w-full {
   width: 100%;
+}
+.w-3 {
+  width: 0.75rem;
+}
+.w-\[120px\] {
+  width: 120px;
 }
 .min-w-0 {
   min-width: 0px;
@@ -1329,11 +1338,6 @@ video {
   margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(2rem * var(--tw-space-y-reverse));
 }
-.space-x-2 > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 0;
-  margin-right: calc(0.5rem * var(--tw-space-x-reverse));
-  margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
-}
 .overflow-auto {
   overflow: auto;
 }
@@ -1513,10 +1517,6 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
 }
-.bg-blue-100 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1));
-}
 .fill-current {
   fill: currentColor;
 }
@@ -1611,6 +1611,10 @@ video {
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
+}
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
 .pb-2 {
   padding-bottom: 0.5rem;
@@ -1809,10 +1813,6 @@ video {
 .text-yellow-500 {
   --tw-text-opacity: 1;
   color: rgb(234 179 8 / var(--tw-text-opacity, 1));
-}
-.text-blue-800 {
-  --tw-text-opacity: 1;
-  color: rgb(30 64 175 / var(--tw-text-opacity, 1));
 }
 .underline-offset-4 {
   text-underline-offset: 4px;
@@ -2096,6 +2096,11 @@ video {
 
 .hover\:bg-sidebar-accent:hover {
   background-color: hsl(var(--sidebar-accent));
+}
+
+.hover\:bg-green-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(21 128 61 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:text-accent-foreground:hover {
@@ -2806,15 +2811,6 @@ video {
   background-color: rgb(5 46 22 / 0.5);
 }
 
-.dark\:bg-blue-900\/50:is(.dark *) {
-  background-color: rgb(30 58 138 / 0.5);
-}
-
-.dark\:text-blue-300:is(.dark *) {
-  --tw-text-opacity: 1;
-  color: rgb(147 197 253 / var(--tw-text-opacity, 1));
-}
-
 @media (min-width: 640px) {
 
   .sm\:bottom-auto {
@@ -3090,6 +3086,10 @@ video {
 
   .lg\:col-span-1 {
     grid-column: span 1 / span 1;
+  }
+
+  .lg\:col-span-2 {
+    grid-column: span 2 / span 2;
   }
 
   .lg\:grid-cols-2 {
