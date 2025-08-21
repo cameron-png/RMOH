@@ -1,7 +1,7 @@
 
 'use server';
 
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/server';
 import { Gift } from '@/lib/types';
 
@@ -26,8 +26,8 @@ export async function createGift(params: CreateGiftParams) {
             createdAt: Timestamp.now(),
         };
 
-        const giftsCollectionRef = collection(adminDb, "gifts");
-        await addDoc(giftsCollectionRef, newGift);
+        const giftsCollectionRef = adminDb.collection("gifts");
+        await giftsCollectionRef.add(newGift);
 
         return { success: true };
 
@@ -36,5 +36,3 @@ export async function createGift(params: CreateGiftParams) {
         return { success: false, message: error.message || "Failed to create gift record in the database." };
     }
 }
-
-    
