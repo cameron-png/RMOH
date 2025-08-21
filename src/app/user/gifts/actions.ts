@@ -40,7 +40,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
     const giftId = uuidv4();
 
     try {
-        // Step 1: POST to create the gift order.
+        // Step 1: POST to create the gift order with our unique ID.
         await createGiftbitLink({
             brand_codes: [brandCode],
             price_in_cents: amountInCents,
@@ -50,7 +50,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         // Step 2: Wait for a moment for Giftbit to process.
         await sleep(2000); // 2-second delay
 
-        // Step 3: GET the generated link details.
+        // Step 3: GET the generated link details using the same ID.
         const giftbitResponse = await getGiftbitLink(giftId);
 
         // The GET /links/{id} response contains an array of links. We want the first one.
