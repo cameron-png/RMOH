@@ -46,7 +46,7 @@ export default function GiftsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
-  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [loadingBrands, setLoadingBrands] = useState(true);
 
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
@@ -86,27 +86,25 @@ export default function GiftsPage() {
     return () => unsubscribe?.();
   }, [fetchGifts]);
 
-  // Fetch brands when the form dialog is opened
+  // Fetch brands when the page loads, not just when dialog opens
   useEffect(() => {
-    if (isFormOpen) {
-        const loadBrands = async () => {
-            setLoadingBrands(true);
-            try {
-                const fetchedBrands = await getGiftbitBrands();
-                setBrands(fetchedBrands);
-            } catch (error) {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: 'Could not load available gift brands.',
-                });
-            } finally {
-                setLoadingBrands(false);
-            }
-        };
-        loadBrands();
-    }
-  }, [isFormOpen, toast]);
+    const loadBrands = async () => {
+        setLoadingBrands(true);
+        try {
+            const fetchedBrands = await getGiftbitBrands();
+            setBrands(fetchedBrands);
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not load available gift brands.',
+            });
+        } finally {
+            setLoadingBrands(false);
+        }
+    };
+    loadBrands();
+  }, [toast]);
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link).then(() => {
@@ -166,7 +164,7 @@ export default function GiftsPage() {
         form.reset();
 
         // Trigger background processing
-        processGift(docRef.id);
+        await processGift(docRef.id);
 
     } catch (error: any) {
          toast({
@@ -243,8 +241,8 @@ export default function GiftsPage() {
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                 </div>
                                             ) : (
-                                                brands.map(brand => (
-                                                    <SelectItem key={brand.code} value={brand.code}>{brand.name}</SelectItem>
+                                                brands.map((brand, index) => (
+                                                    <SelectItem key={`${brand.code}-${index}`} value={brand.code}>{brand.name}</SelectItem>
                                                 ))
                                             )}
                                         </SelectContent>
