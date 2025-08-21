@@ -6,9 +6,9 @@ export async function POST(request: NextRequest) {
   const authorization = request.headers.get('Authorization');
   if (authorization?.startsWith('Bearer ')) {
     const idToken = authorization.split('Bearer ')[1];
-    // Set session cookie
+    // Set session cookie with the standard name `__session`
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-    cookies().set('AuthToken', idToken, {
+    cookies().set('__session', idToken, {
         maxAge: expiresIn,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

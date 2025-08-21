@@ -30,7 +30,7 @@ export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
 }
 
 async function getCurrentUser(): Promise<(UserProfile & { uid: string }) | null> {
-    const sessionCookie = cookies().get('AuthToken')?.value;
+    const sessionCookie = cookies().get('__session')?.value;
     if (!sessionCookie) {
         return null;
     }
