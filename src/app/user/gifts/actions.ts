@@ -7,7 +7,6 @@ import { createGift as createGiftbitLink, listBrands, GiftbitBrand } from '@/lib
 import { Gift } from '@/lib/types';
 
 const createGiftSchema = z.object({
-  brandCode: z.string().min(1, "Please select a brand."),
   amountInCents: z.string().transform(val => {
     const numericVal = parseFloat(val.replace(/[^0-9.]/g, ''));
     return Math.round(numericVal * 100);
@@ -28,7 +27,6 @@ export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
 
 export async function createGiftLink(prevState: CreateGiftFormState, formData: FormData): Promise<CreateGiftFormState> {
     const validatedFields = createGiftSchema.safeParse({
-        brandCode: formData.get('brandCode'),
         amountInCents: formData.get('amountInCents'),
     });
 
@@ -40,31 +38,28 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         };
     }
     
-    const { brandCode, amountInCents } = validatedFields.data;
+    const { amountInCents } = validatedFields.data;
     const giftId = uuidv4();
 
     try {
         const giftPayload = {
-            brand_code: brandCode, // Use singular 'brand_code'
             price_in_cents: amountInCents,
             id: giftId,
+            region: "US", // Use Full Catalog option for US region
         };
 
         const giftbitResponse = await createGiftbitLink(giftPayload);
-
-        const brandList = await getGiftbitBrands();
-        const brandDetails = brandList.find(b => b.brand_code === brandCode);
-
+        
         const createdGift: Gift = {
             id: giftId,
-            userId: '', // No longer tracking user association here
-            brandCode,
-            brandName: brandDetails?.name || brandCode,
+            userId: '', 
+            brandCode: 'Full Catalog', // Indicate that this is a full catalog gift
+            brandName: 'Any Brand',
             amountInCents,
             status: 'created',
             shortId: giftbitResponse.short_id,
             claimUrl: giftbitResponse.claim_url,
-            createdAt: new Date(), // Using JS Date for simplicity client-side
+            createdAt: new Date(), 
         };
         
         return { 

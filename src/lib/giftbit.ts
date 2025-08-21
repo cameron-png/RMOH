@@ -75,9 +75,9 @@ export async function listBrands(): Promise<GiftbitBrand[]> {
 }
 
 interface CreateGiftPayload {
-    brand_code: string;
     price_in_cents: number;
     id: string;
+    region: string; // Add region for Full Catalog option
 }
 
 export async function createGift(payload: CreateGiftPayload) {

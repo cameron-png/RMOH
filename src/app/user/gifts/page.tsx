@@ -15,20 +15,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { PlusCircle, Copy, Loader2, Gift } from 'lucide-react';
-import { createGiftLink, getGiftbitBrands } from './actions';
-import type { GiftbitBrand, Gift } from '@/lib/types';
+import { createGiftLink } from './actions';
+import type { Gift } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/use-auth';
-
 
 function CreateGiftSubmitButton() {
   const { pending } = useFormStatus();
@@ -41,11 +32,9 @@ function CreateGiftSubmitButton() {
 
 
 export default function GiftsPage() {
-  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
-  const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [amountValue, setAmountValue] = useState("");
   const [createdGift, setCreatedGift] = useState<Gift | null>(null);
 
@@ -58,23 +47,6 @@ export default function GiftsPage() {
   });
 
   
-  useEffect(() => {
-    async function fetchBrands() {
-        try {
-            const fetchedBrands = await getGiftbitBrands();
-            const sortedBrands = fetchedBrands.sort((a, b) => a.name.localeCompare(b.name));
-            setBrands(sortedBrands);
-        } catch (error) {
-            toast({
-                title: 'Error',
-                description: 'Could not load gift card brands.',
-                variant: 'destructive',
-            });
-        }
-    }
-    fetchBrands();
-  }, [toast]);
-
   // Handle result of creating a gift link
   useEffect(() => {
     if (!createGiftState.success && createGiftState.message) {
@@ -146,7 +118,7 @@ export default function GiftsPage() {
        <Card>
         <CardHeader>
             <CardTitle>Create a Gift</CardTitle>
-            <CardDescription>Select a brand and amount to generate a shareable gift link.</CardDescription>
+            <CardDescription>Enter an amount to generate a shareable gift link that the recipient can use for any available brand.</CardDescription>
         </CardHeader>
         <CardContent>
             <Dialog open={isCreateDialogOpen} onOpenChange={(isOpen) => {
@@ -165,30 +137,11 @@ export default function GiftsPage() {
                 <DialogHeader>
                   <DialogTitle>Create a Gift Link</DialogTitle>
                   <DialogDescription>
-                    Select a brand and amount to generate a link.
+                    Enter an amount to generate a link. The recipient can choose their preferred brand.
                   </DialogDescription>
                 </DialogHeader>
                 <form ref={createFormRef} action={createGiftAction} className="space-y-4 py-4">
                     <div className="space-y-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="brandCode">Brand</Label>
-                            <Select name="brandCode" required>
-                               <SelectTrigger id="brandCode">
-                                   <SelectValue placeholder="Select a brand" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                {brands.length > 0 ? (
-                                    brands.map(brand => (
-                                        <SelectItem key={brand.brand_code} value={brand.brand_code}>
-                                            {brand.name}
-                                        </SelectItem>
-                                    ))
-                                ) : (
-                                    <SelectItem value="loading" disabled>Loading brands...</SelectItem>
-                                )}
-                               </SelectContent>
-                            </Select>
-                        </div>
                         <div className="grid gap-2">
                             <Label htmlFor="amountInCents">Amount (USD)</Label>
                             <div className="relative">
@@ -225,7 +178,7 @@ export default function GiftsPage() {
             <DialogHeader>
                 <DialogTitle>Gift Link Created!</DialogTitle>
                 <DialogDescription>
-                    Your {formatBalance(createdGift?.amountInCents)} {createdGift?.brandName} gift link is ready. You can copy it now or send it from the Gift Log later.
+                    Your {formatBalance(createdGift?.amountInCents)} gift link is ready. The recipient can choose any available brand. You can copy the link now to send it.
                 </DialogDescription>
             </DialogHeader>
              <div className="space-y-4 py-4">
