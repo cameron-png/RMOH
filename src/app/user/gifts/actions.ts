@@ -25,8 +25,8 @@ export async function createGift(params: CreateGiftParams) {
             brandCode: params.brandCode,
             amountInCents: params.amountInCents,
             type: 'Manual',
-            status: 'Pending', // Set a default status
-            claimUrl: null, // Use null for placeholder
+            status: 'Pending',
+            claimUrl: null, 
             createdAt: Timestamp.now(),
         };
 

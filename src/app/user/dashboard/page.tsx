@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -28,15 +29,6 @@ const formSchema = z.object({
     message: "Please enter a valid address.",
   }),
 });
-
-// Helper to convert Firestore Timestamp to JS Date
-const toDate = (timestamp: Date | Timestamp): Date => {
-    if (timestamp instanceof Timestamp) {
-        return timestamp.toDate();
-    }
-    return timestamp;
-};
-
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -140,7 +132,7 @@ export default function DashboardPage() {
   }, [user, authLoading, fetchDashboardData]);
   
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && addressInputRef.current) {
       const loader = new Loader({
         apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
         version: "weekly",
@@ -169,7 +161,6 @@ export default function DashboardPage() {
     }
 
     return () => {
-        // Cleanup function to remove pac-container elements
         const pacContainers = document.querySelectorAll('.pac-container');
         pacContainers.forEach(container => container.remove());
     }
@@ -179,9 +170,9 @@ export default function DashboardPage() {
     return openHouses
       .filter(house => house.address.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => {
-        const dateA = a.createdAt ? toDate(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? toDate(b.createdAt).getTime() : 0;
-        return sortOrder === 'newest' ? dateB - dateA : dateA - b.createdAt.toDate().getTime();
+        const dateA = a.createdAt ? a.createdAt.toDate().getTime() : 0;
+        const dateB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
+        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
   }, [openHouses, searchTerm, sortOrder]);
 
@@ -332,12 +323,7 @@ export default function DashboardPage() {
                             <Input 
                               placeholder="123 Main St, Anytown, USA" 
                               {...field}
-                               ref={(el) => {
-                                  field.ref(el);
-                                  if (el) {
-                                    addressInputRef.current = el;
-                                  }
-                              }} 
+                               ref={addressInputRef}
                             />
                           </FormControl>
                           <FormMessage className="pt-2" />
@@ -450,5 +436,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    

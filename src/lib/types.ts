@@ -15,7 +15,7 @@ export interface OpenHouse {
     userId: string;
     address: string;
     structuredAddress?: Address;
-    createdAt: any; // Allow for string or Timestamp
+    createdAt: Timestamp;
     imageUrl?: string;
     isActive?: boolean;
     feedbackFormId?: string;
@@ -29,7 +29,7 @@ export interface Lead {
     email?: string;
     phone?: string;
     notes?: string;
-    createdAt: any; // Allow for string or Timestamp
+    createdAt: Timestamp;
     feedbackSubmissionId?: string;
     status: 'active' | 'deleted';
 }
@@ -71,7 +71,7 @@ export interface FeedbackForm {
     title: string;
     type: 'global' | 'custom';
     questions: Question[];
-    createdAt: any; // Allow for string or Timestamp
+    createdAt: Timestamp;
     userId?: string; // Only for custom forms
     description?: string;
 }
@@ -81,7 +81,7 @@ export interface FeedbackSubmission {
     userId: string;
     openHouseId: string;
     formId: string;
-    submittedAt: any; // Allow for string or Timestamp
+    submittedAt: Timestamp;
     answers: {
         questionId: string;
         questionText: string;
