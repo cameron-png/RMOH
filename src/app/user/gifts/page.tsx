@@ -62,7 +62,8 @@ export default function GiftsPage() {
     },
   });
   
-  const handleBrandChange = (brandCode: string) => {
+  const handleBrandChange = (brandIdentifier: string) => {
+    const brandCode = brandIdentifier.split('-')[0];
     const brand = brands.find(b => b.code === brandCode);
     setSelectedBrand(brand || null);
     form.setValue('brand', brandCode);
@@ -277,7 +278,7 @@ export default function GiftsPage() {
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Brand</FormLabel>
-                                    <Select onValueChange={handleBrandChange} value={field.value} disabled={loadingBrands}>
+                                    <Select onValueChange={handleBrandChange} disabled={loadingBrands}>
                                         <FormControl>
                                             <SelectTrigger>
                                             <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
@@ -289,9 +290,14 @@ export default function GiftsPage() {
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                 </div>
                                             ) : (
-                                                brands.map((brand, index) => (
-                                                    <SelectItem key={`${brand.code}-${index}`} value={brand.code}>{brand.name}</SelectItem>
-                                                ))
+                                                brands.map((brand, index) => {
+                                                  const uniqueValue = `${brand.code}-${index}`;
+                                                  return (
+                                                    <SelectItem key={uniqueValue} value={uniqueValue}>
+                                                      {brand.name}
+                                                    </SelectItem>
+                                                  );
+                                                })
                                             )}
                                         </SelectContent>
                                     </Select>
