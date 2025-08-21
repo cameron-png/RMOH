@@ -118,7 +118,7 @@ export interface Gift {
     status: 'created' | 'sent' | 'claimed' | 'failed';
     shortId: string;
     claimUrl: string;
-    createdAt: Timestamp;
-    sentAt?: Timestamp;
+    createdAt: any; // Can be Timestamp or Date
+    sentAt?: any; // Can be Timestamp or Date
     errorMessage?: string;
 }

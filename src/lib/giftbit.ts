@@ -1,8 +1,6 @@
 
 'use server';
 
-import { UserProfile } from './types';
-
 const GIFTBIT_API_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
 interface FetchOptions {
@@ -77,18 +75,15 @@ export async function listBrands(): Promise<GiftbitBrand[]> {
 }
 
 interface CreateGiftPayload {
-    brand_codes: string[];
+    brand_code: string;
     price_in_cents: number;
     id: string;
-    contacts: { name: string; email: string }[];
 }
 
 export async function createGift(payload: CreateGiftPayload) {
-    const response = await fetchGiftbitAPI('directlinks', {
+    const response = await fetchGiftbitAPI('links', {
         method: 'POST',
-        body: {
-            directlink: payload
-        },
+        body: payload,
     });
-    return response.directlink;
+    return response.link;
 }
