@@ -3,13 +3,14 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { createGiftbitLink } from '@/lib/giftbit';
-import { Gift, GiftbitBrand } from '@/lib/types';
+import { createGiftbitLink, listBrands } from '@/lib/giftbit';
+import { Gift } from '@/lib/types';
 
 const createGiftSchema = z.object({
   brandCode: z.string().min(1, "Please select a brand."),
   amountInCents: z.string().transform(val => {
-    const numericVal = parseFloat(val.replace(/[^0-9.]/g, ''));
+    const numericVal = parseFloat(val);
+    if (isNaN(numericVal)) return 0;
     return Math.round(numericVal * 100);
   }).pipe(z.number().min(500, "Amount must be at least $5.00.")),
 });
@@ -45,13 +46,18 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         });
         
         if (!giftbitResponse || !giftbitResponse.short_id || !giftbitResponse.claim_url) {
-             throw new Error("Received an invalid or empty response from Giftbit API.");
+             throw new Error("Received an invalid or empty response from the Giftbit API.");
         }
+        
+        // Find the brand name from the list of brands for display purposes
+        const brands = await listBrands();
+        const brandName = brands.find(b => b.brand_code === brandCode)?.name || brandCode;
         
         const createdGift: Gift = {
             id: giftId,
-            userId: '', // This is a transient gift, not yet saved to DB for a user
+            userId: '', // This is a transient gift, not saved to DB
             brandCode: brandCode,
+            brandName: brandName,
             amountInCents,
             status: 'created',
             shortId: giftbitResponse.short_id,
@@ -61,12 +67,12 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         
         return { 
             success: true, 
-            message: `Gift link created successfully!`,
+            message: 'Gift link created successfully!',
             gift: createdGift
         };
 
     } catch (error: any) {
         console.error('Error creating Giftbit link:', error);
-        return { success: false, message: error.message || 'An unexpected error occurred.' };
+        return { success: false, message: error.message || 'An unexpected error occurred while creating the gift.' };
     }
 }

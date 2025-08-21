@@ -36,17 +36,19 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
         let errorDetails = 'No details available.';
         try {
             const errorJson = await response.json();
-            errorDetails = JSON.stringify(errorJson, null, 2);
+            // Extract the user-friendly message if available
+            errorDetails = errorJson?.errors?.[0]?.message || JSON.stringify(errorJson);
         } catch (e) {
             errorDetails = await response.text();
         }
         console.error(`Giftbit API Error (${response.status}):`, errorDetails);
-        throw new Error(`Giftbit API request failed with status ${response.status}. Details: ${errorDetails}`);
+        throw new Error(`Giftbit API request failed: ${errorDetails}`);
     }
 
     return await response.json();
   } catch (error) {
     console.error('Failed to fetch from Giftbit API:', error);
+    // Re-throw the original error which might have more context
     throw error;
   }
 }
@@ -66,7 +68,12 @@ export interface GiftbitBrand {
 
 export async function listBrands(): Promise<GiftbitBrand[]> {
     try {
-        const response = await fetchGiftbitAPI('brands', { params: { currencyisocode: 'USD', limit: '200' }});
+        const response = await fetchGiftbitAPI('brands', { 
+            params: { 
+                currencyisocode: 'USD',
+                limit: '200' 
+            }
+        });
         return response?.brands || [];
     } catch (error) {
         console.error("Could not fetch brands from Giftbit:", error);
@@ -81,8 +88,10 @@ interface CreateGiftPayload {
 }
 
 export async function createGiftbitLink(payload: CreateGiftPayload) {
-    return await fetchGiftbitAPI('direct_links', {
+    const response = await fetchGiftbitAPI('direct_links', {
         method: 'POST',
         body: payload,
     });
+    // The create direct link response returns the link object directly
+    return response;
 }

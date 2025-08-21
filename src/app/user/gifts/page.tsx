@@ -11,11 +11,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Copy, Loader2, Gift } from 'lucide-react';
+import { PlusCircle, Copy, Loader2 } from 'lucide-react';
 import { createGiftLink } from './actions';
 import type { Gift, GiftbitBrand } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -26,19 +25,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 function CreateGiftSubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
-      {pending ? <Loader2 className="animate-spin" /> : 'Create Gift Link'}
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? <Loader2 className="animate-spin mr-2" /> : <PlusCircle className="mr-2" />}
+      {pending ? 'Creating Link...' : 'Create Gift Link'}
     </Button>
   );
 }
 
-
 export default function GiftsPage() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
-
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
-  const [amountValue, setAmountValue] = useState("");
   const [createdGift, setCreatedGift] = useState<Gift | null>(null);
 
   const { toast } = useToast();
@@ -48,32 +44,38 @@ export default function GiftsPage() {
     success: false,
     message: '',
   });
-
+  
   useEffect(() => {
     async function fetchBrands() {
-        const brandList = await listBrands();
-        setBrands(brandList);
+        try {
+            const brandList = await listBrands();
+            setBrands(brandList);
+        } catch (error) {
+            toast({
+                title: 'Error Fetching Brands',
+                description: 'Could not load the list of available gift card brands.',
+                variant: 'destructive'
+            });
+        }
     }
     fetchBrands();
-  }, []);
+  }, [toast]);
   
-  // Handle result of creating a gift link
   useEffect(() => {
-    if (!createGiftState.success && createGiftState.message) {
+    if (createGiftState.message) {
+      if (createGiftState.success && createGiftState.gift) {
+        setCreatedGift(createGiftState.gift);
+        setIsSuccessDialogOpen(true);
+        createFormRef.current?.reset();
+      } else if (!createGiftState.success) {
         toast({
             title: 'Error',
             description: createGiftState.message,
             variant: 'destructive',
         });
-    } else if (createGiftState.success && createGiftState.gift) {
-        setIsCreateDialogOpen(false);
-        createFormRef.current?.reset();
-        setAmountValue("");
-        setCreatedGift(createGiftState.gift);
-        setIsSuccessDialogOpen(true);
+      }
     }
   }, [createGiftState, toast]);
-
 
   const handleCopy = (textToCopy: string) => {
     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -89,112 +91,61 @@ export default function GiftsPage() {
     }).format(balanceInCents / 100);
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const numericValue = value.replace(/[^0-9.]/g, '');
-    const parts = numericValue.split('.');
-    
-    if (parts.length > 2) {
-      return;
-    }
-
-    if (parts[1] && parts[1].length > 2) {
-      parts[1] = parts[1].substring(0, 2);
-    }
-
-    setAmountValue(parts.join('.'));
-  };
-
-  const handleAmountBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value)) {
-      setAmountValue(value.toFixed(2));
-    }
-  };
-
-
   return (
     <>
     <div className="w-full mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex-grow">
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Gifts</h1>
-          <p className="text-muted-foreground">
-            Create gift links to send to your clients and leads.
-          </p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex-grow">
+            <h1 className="text-3xl font-bold tracking-tight font-headline">Gifts</h1>
+            <p className="text-muted-foreground">
+                Create a single gift link to send to your clients and leads.
+            </p>
+            </div>
         </div>
-      </div>
 
-       <Card>
-        <CardHeader>
-            <CardTitle>Create a Gift</CardTitle>
-            <CardDescription>Select a brand and amount to generate a shareable gift link.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Dialog open={isCreateDialogOpen} onOpenChange={(isOpen) => {
-              setIsCreateDialogOpen(isOpen);
-              if (!isOpen) {
-                setAmountValue("");
-                createFormRef.current?.reset();
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <PlusCircle className="mr-2" /> Create a Gift
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Create a Gift Link</DialogTitle>
-                  <DialogDescription>
-                    Select a brand and enter an amount to generate a link.
-                  </DialogDescription>
-                </DialogHeader>
-                <form ref={createFormRef} action={createGiftAction} className="space-y-4 py-4">
-                    <div className="space-y-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="brandCode">Brand</Label>
-                          <Select name="brandCode" required>
-                            <SelectTrigger id="brandCode">
-                                <SelectValue placeholder="Select a brand..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {brands.map(brand => (
-                                    <SelectItem key={brand.brand_code} value={brand.brand_code}>
-                                        {brand.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="amountInCents">Amount (USD)</Label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                                <Input 
-                                    id="amountInCents" 
-                                    name="amountInCents" 
-                                    type="text" 
-                                    inputMode="decimal"
-                                    placeholder="25.00" 
-                                    required
-                                    value={amountValue}
-                                    onChange={handleAmountChange}
-                                    onBlur={handleAmountBlur}
-                                    className="pl-6"
-                                />
-                            </div>
+        <Card className="w-full max-w-md mx-auto">
+            <CardHeader>
+                <CardTitle>Create a Gift</CardTitle>
+                <CardDescription>Select a brand and amount to generate a shareable gift link.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form ref={createFormRef} action={createGiftAction} className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="brandCode">Brand</Label>
+                        <Select name="brandCode" required>
+                        <SelectTrigger id="brandCode">
+                            <SelectValue placeholder="Select a brand..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {brands.length > 0 ? brands.map(brand => (
+                                <SelectItem key={brand.brand_code} value={brand.brand_code}>
+                                    {brand.name}
+                                </SelectItem>
+                            )) : (
+                                <div className="p-4 text-center text-sm text-muted-foreground">Loading brands...</div>
+                            )}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="amountInCents">Amount (USD)</Label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                            <Input 
+                                id="amountInCents" 
+                                name="amountInCents" 
+                                type="number"
+                                step="0.01"
+                                placeholder="25.00" 
+                                required
+                                className="pl-6"
+                            />
                         </div>
                     </div>
-                    <DialogFooter>
-                      <Button type="button" variant="ghost" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                      <CreateGiftSubmitButton />
-                    </DialogFooter>
+                    <CreateGiftSubmitButton />
                 </form>
-              </DialogContent>
-            </Dialog>
-        </CardContent>
-       </Card>
+            </CardContent>
+        </Card>
     </div>
 
     {/* Success Dialog */}
@@ -203,10 +154,11 @@ export default function GiftsPage() {
             <DialogHeader>
                 <DialogTitle>Gift Link Created!</DialogTitle>
                 <DialogDescription>
-                    Your {formatBalance(createdGift?.amountInCents)} gift link is ready. You can copy the link now to send it.
+                    Your {formatBalance(createdGift?.amountInCents)} gift link for {createdGift?.brandName} is ready.
                 </DialogDescription>
             </DialogHeader>
              <div className="space-y-4 py-4">
+                <p className="text-sm text-muted-foreground">Copy the link below and send it to your recipient.</p>
                 <Input readOnly value={createdGift?.claimUrl || ''} className="bg-muted"/>
                 <Button className="w-full" onClick={() => {
                     if (createdGift) handleCopy(createdGift.claimUrl);
