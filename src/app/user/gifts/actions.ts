@@ -46,6 +46,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
         const giftbitResponse = await createGiftbitLink(giftPayload);
         
+        // Correctly access the nested direct_link object from the response
         const createdGift: Gift = {
             id: giftId,
             userId: '', // This is a transient gift, not yet saved to DB for a user
