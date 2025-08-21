@@ -133,7 +133,6 @@ export default function GiftsPage() {
 
     const result = await createGift({
         userId: user.uid,
-        userName: user.name,
         recipientName: values.recipientName,
         recipientEmail: values.recipientEmail,
         brandCode: values.brand,
@@ -286,14 +285,13 @@ export default function GiftsPage() {
                         <TableHead>Recipient</TableHead>
                         <TableHead>Gift</TableHead>
                         <TableHead>Type</TableHead>
-                        <TableHead>From</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Link</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
-                          <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading gifts...</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading gifts...</TableCell></TableRow>
                       ) : gifts.length > 0 ? (
                         gifts.map((gift) => (
                           <TableRow key={gift.id}>
@@ -303,7 +301,6 @@ export default function GiftsPage() {
                             </TableCell>
                             <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
                             <TableCell>{gift.brandCode.charAt(0).toUpperCase() + gift.brandCode.slice(1)}</TableCell>
-                            <TableCell>{gift.from}</TableCell>
                             <TableCell>
                                 <Badge variant={gift.status === 'Available' ? 'default' : 'secondary'}>
                                     {gift.status}
@@ -323,7 +320,7 @@ export default function GiftsPage() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
+                          <TableCell colSpan={5} className="h-24 text-center">
                             No gifts have been created yet.
                           </TableCell>
                         </TableRow>

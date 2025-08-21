@@ -98,7 +98,6 @@ export interface Gift {
     brandCode: string;
     amountInCents: number;
     type: string;
-    from: string;
     status: 'Pending' | 'Available' | 'Failed';
     claimUrl?: string;
     createdAt: Timestamp;

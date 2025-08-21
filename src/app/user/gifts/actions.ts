@@ -7,7 +7,6 @@ import { Gift } from '@/lib/types';
 
 interface CreateGiftParams {
     userId: string;
-    userName: string;
     recipientName: string;
     recipientEmail: string;
     brandCode: string;
@@ -22,7 +21,6 @@ export async function createGift(params: CreateGiftParams) {
             recipientEmail: params.recipientEmail,
             brandCode: params.brandCode,
             amountInCents: params.amountInCents,
-            from: params.userName,
             type: 'Gift Card', // Assuming a static type for now
             status: 'Pending',
             createdAt: Timestamp.now(),
