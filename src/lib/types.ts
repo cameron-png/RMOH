@@ -99,12 +99,10 @@ export interface Gift {
     amountInCents: number;
     type: string;
     status: 'Pending' | 'Available' | 'Failed';
-    claimUrl?: string;
+    claimUrl: string | null;
     createdAt: Timestamp;
 }
 
 export interface AppSettings {
     defaultGlobalFormId?: string;
 }
-
-    

@@ -32,11 +32,12 @@ const giftFormSchema = z.object({
   customAmount: z.string().optional(),
 }).refine(data => {
     if (data.amount === 'custom') {
-        return data.customAmount && !isNaN(parseFloat(data.customAmount)) && parseFloat(data.customAmount) > 0;
+        const customAmountValue = parseFloat(data.customAmount || '0');
+        return data.customAmount && !isNaN(customAmountValue) && customAmountValue > 0 && customAmountValue <= 100;
     }
     return true;
 }, {
-    message: "Please enter a valid custom amount.",
+    message: "Please enter a valid custom amount between $0.01 and $100.00.",
     path: ['customAmount'],
 });
 
@@ -176,7 +177,7 @@ export default function GiftsPage() {
                     <DialogHeader>
                         <DialogTitle>Create a New Gift</DialogTitle>
                         <DialogDescription>
-                            Enter the details below to create a new digital gift card.
+                            Enter the details below to create a new digital gift card. The cost will be deducted from your available balance.
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
@@ -300,7 +301,13 @@ export default function GiftsPage() {
                                 <div className="text-xs text-muted-foreground">{gift.recipientEmail}</div>
                             </TableCell>
                             <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
-                            <TableCell>{gift.brandCode.charAt(0).toUpperCase() + gift.brandCode.slice(1)}</TableCell>
+                             <TableCell>
+                                {gift.brandCode ? (
+                                    <span>{gift.brandCode.charAt(0).toUpperCase() + gift.brandCode.slice(1)}</span>
+                                ) : (
+                                    <span>-</span>
+                                )}
+                            </TableCell>
                             <TableCell>
                                 <Badge variant={gift.status === 'Available' ? 'default' : 'secondary'}>
                                     {gift.status}
@@ -334,5 +341,3 @@ export default function GiftsPage() {
     </>
   );
 }
-
-    

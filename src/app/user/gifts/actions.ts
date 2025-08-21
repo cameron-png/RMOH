@@ -3,7 +3,7 @@
 
 import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/server';
-import { Gift } from '@/lib/types';
+import type { Gift } from '@/lib/types';
 
 interface CreateGiftParams {
     userId: string;
@@ -15,6 +15,9 @@ interface CreateGiftParams {
 
 export async function createGift(params: CreateGiftParams) {
     try {
+        const giftsCollectionRef = adminDb.collection("gifts");
+
+        // Construct the new gift object, adhering to the Gift type
         const newGift: Omit<Gift, 'id'> = {
             userId: params.userId,
             recipientName: params.recipientName,
@@ -22,11 +25,11 @@ export async function createGift(params: CreateGiftParams) {
             brandCode: params.brandCode,
             amountInCents: params.amountInCents,
             type: 'Manual',
-            status: 'Pending',
+            status: 'Pending', // Set a default status
+            claimUrl: null, // Use null for placeholder
             createdAt: Timestamp.now(),
         };
 
-        const giftsCollectionRef = adminDb.collection("gifts");
         await giftsCollectionRef.add(newGift);
 
         return { success: true };
