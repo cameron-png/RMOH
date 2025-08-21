@@ -1,6 +1,4 @@
 {
-  "/api/auth/login/route": "app/api/auth/login/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
   "/page": "app/page.js",
   "/user/gifts/page": "app/user/gifts/page.js",
   "/admin/page": "app/admin/page.js"

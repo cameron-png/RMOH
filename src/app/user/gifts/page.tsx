@@ -15,13 +15,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Gift as GiftIcon, PlusCircle } from 'lucide-react';
+import { Copy, Gift as GiftIcon, PlusCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { processGift } from './actions';
+import { processGift, getGiftbitBrands } from './actions';
 
 
 const giftFormSchema = z.object({
@@ -31,14 +31,11 @@ const giftFormSchema = z.object({
   amount: z.string().min(1, "Please enter an amount."),
 });
 
-
-// MOCK BRANDS - This will be replaced with API data later
-const MOCK_BRANDS = [
-    { code: 'amazonus', name: 'Amazon' },
-    { code: 'starbucksus', name: 'Starbucks' },
-    { code: 'targetus', name: 'Target' },
-    { code: 'walmartus', name: 'Walmart' },
-];
+interface GiftbitBrand {
+    code: string;
+    name: string;
+    // Add other fields if needed, like image, denominations etc.
+}
 
 
 export default function GiftsPage() {
@@ -47,6 +44,10 @@ export default function GiftsPage() {
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  const [brands, setBrands] = useState<GiftbitBrand[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
     resolver: zodResolver(giftFormSchema),
@@ -84,6 +85,28 @@ export default function GiftsPage() {
     const unsubscribe = fetchGifts();
     return () => unsubscribe?.();
   }, [fetchGifts]);
+
+  // Fetch brands when the form dialog is opened
+  useEffect(() => {
+    if (isFormOpen) {
+        const loadBrands = async () => {
+            setLoadingBrands(true);
+            try {
+                const fetchedBrands = await getGiftbitBrands();
+                setBrands(fetchedBrands);
+            } catch (error) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: 'Could not load available gift brands.',
+                });
+            } finally {
+                setLoadingBrands(false);
+            }
+        };
+        loadBrands();
+    }
+  }, [isFormOpen, toast]);
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link).then(() => {
@@ -208,16 +231,22 @@ export default function GiftsPage() {
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Brand</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={loadingBrands}>
                                         <FormControl>
                                             <SelectTrigger>
-                                            <SelectValue placeholder="Select a brand..." />
+                                            <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {MOCK_BRANDS.map(brand => (
-                                                <SelectItem key={brand.code} value={brand.code}>{brand.name}</SelectItem>
-                                            ))}
+                                            {loadingBrands ? (
+                                                <div className="flex items-center justify-center p-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                </div>
+                                            ) : (
+                                                brands.map(brand => (
+                                                    <SelectItem key={brand.code} value={brand.code}>{brand.name}</SelectItem>
+                                                ))
+                                            )}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -278,7 +307,7 @@ export default function GiftsPage() {
                             <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
                              <TableCell>
                                 {gift.brandCode ? (
-                                    <span>{MOCK_BRANDS.find(b => b.code === gift.brandCode)?.name || gift.brandCode}</span>
+                                    <span>{brands.find(b => b.code === gift.brandCode)?.name || gift.brandCode}</span>
                                 ) : (
                                     <span>-</span>
                                 )}

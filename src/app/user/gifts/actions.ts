@@ -10,6 +10,30 @@ import { sleep } from '@/lib/utils';
 const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
+
+export async function getGiftbitBrands() {
+    if (!GIFTBIT_API_KEY) {
+        throw new Error('GIFTBIT_API_KEY is not configured on the server.');
+    }
+
+    const response = await fetch(`${GIFTBIT_BASE_URL}/brands`, {
+        headers: {
+            'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
+        },
+        // Use Next.js revalidation to cache for a day
+        next: { revalidate: 86400 } 
+    });
+
+    if (!response.ok) {
+        console.error(`Giftbit Brands API Error (${response.status}):`, await response.text());
+        throw new Error('Failed to fetch brands from Giftbit.');
+    }
+    
+    const data = await response.json();
+    return data.brands || [];
+}
+
+
 async function createDirectLink(gift: Gift): Promise<any> {
     if (!GIFTBIT_API_KEY) {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
