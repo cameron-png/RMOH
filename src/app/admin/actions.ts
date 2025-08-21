@@ -1,8 +1,19 @@
 
 'use server';
 
-import { adminDb } from '@/lib/firebase/server';
+import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { UserProfile, OpenHouse, FeedbackForm, AppSettings } from '@/lib/types';
+
+
+// Helper to ensure a single Firebase Admin app instance
+function getAdminApp(): App {
+    if (getApps().length > 0) {
+        return getApp();
+    }
+    return initializeApp();
+}
+
 
 function serializeTimestamps(obj: any): any {
     if (obj === null || obj === undefined) {
@@ -26,7 +37,7 @@ function serializeTimestamps(obj: any): any {
 
 
 export async function getAdminDashboardData() {
-    const db = adminDb;
+    const db = getFirestore(getAdminApp());
     try {
         let users: UserProfile[] = [];
         try {

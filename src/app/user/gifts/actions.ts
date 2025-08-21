@@ -3,8 +3,8 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { doc, runTransaction, Timestamp, collection, getDocs, query, where, orderBy, limit, updateDoc } from 'firebase/firestore';
-import { adminDb } from '@/lib/firebase/server';
+import { initializeApp, getApps, getApp, App, deleteApp } from 'firebase-admin/app';
+import { getFirestore, doc, runTransaction, Timestamp, collection, getDocs, query, where, orderBy, limit, updateDoc } from 'firebase/firestore';
 import { GiftbitBrand, createGift as createGiftbitLink, listBrands } from '@/lib/giftbit';
 import { UserProfile, Gift } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
@@ -31,6 +31,15 @@ export type CreateGiftFormState = {
     gift?: Gift;
 };
 
+// Helper to ensure a single Firebase Admin app instance
+function getAdminApp(): App {
+    if (getApps().length > 0) {
+        return getApp();
+    }
+    return initializeApp();
+}
+
+
 export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
     return await listBrands();
 }
@@ -53,7 +62,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
     
     const { brandCode, amountInCents, userId } = validatedFields.data;
     const giftId = uuidv4();
-    const db = adminDb;
+    const db = getFirestore(getAdminApp());
 
     try {
         const userDocRef = doc(db, 'users', userId);
@@ -122,7 +131,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
 export async function getGiftLog(userId: string): Promise<Gift[]> {
     if (!userId) return [];
-    const db = adminDb;
+    const db = getFirestore(getAdminApp());
 
     try {
         const giftsQuery = query(
@@ -160,7 +169,7 @@ export async function sendGiftByEmail(prevState: any, formData: FormData): Promi
     }
 
     const { giftId, recipientName, recipientEmail } = validatedFields.data;
-    const db = adminDb;
+    const db = getFirestore(getAdminApp());
 
     try {
         const giftDocRef = doc(db, 'gifts', giftId);
