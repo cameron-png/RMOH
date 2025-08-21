@@ -19,11 +19,6 @@ export interface OpenHouse {
     imageUrl?: string;
     isActive?: boolean;
     feedbackFormId?: string;
-    giftAutomation?: {
-        enabled: boolean;
-        brandCode: string;
-        amountInCents: number;
-    }
 }
 
 export interface Lead {
@@ -93,6 +88,20 @@ export interface FeedbackSubmission {
         questionType: string;
         answer: any;
     }[];
+}
+
+export interface Gift {
+    id: string;
+    userId: string;
+    recipientName: string;
+    recipientEmail: string;
+    brandCode: string;
+    amountInCents: number;
+    type: string;
+    from: string;
+    status: 'Pending' | 'Available' | 'Failed';
+    claimUrl?: string;
+    createdAt: Timestamp;
 }
 
 export interface AppSettings {
