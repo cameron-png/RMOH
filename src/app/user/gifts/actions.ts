@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { createGift as createGiftbitLink } from '@/lib/giftbit';
+import { createGiftbitLink } from '@/lib/giftbit';
 import { Gift, GiftbitBrand } from '@/lib/types';
 
 const createGiftSchema = z.object({
@@ -46,7 +46,10 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
         const giftbitResponse = await createGiftbitLink(giftPayload);
         
-        // Correctly access the nested direct_link object from the response
+        if (!giftbitResponse) {
+             throw new Error("Received no response from Giftbit API.");
+        }
+        
         const createdGift: Gift = {
             id: giftId,
             userId: '', // This is a transient gift, not yet saved to DB for a user

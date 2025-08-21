@@ -80,7 +80,7 @@ interface CreateGiftPayload {
     brand_codes: string[];
 }
 
-export async function createGift(payload: CreateGiftPayload) {
+export async function createGiftbitLink(payload: CreateGiftPayload) {
     const response = await fetchGiftbitAPI('direct_links', {
         method: 'POST',
         body: payload,
