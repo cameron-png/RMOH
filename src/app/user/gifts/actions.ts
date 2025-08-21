@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createGiftbitLink, getGiftbitLink } from '@/lib/giftbit';
 import type { Gift, UserProfile } from '@/lib/types';
 import { sleep } from '@/lib/utils';
-import { addDoc, collection, doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, setDoc, Timestamp, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server';
@@ -44,17 +44,23 @@ export async function createGift(formData: FormData) {
     try {
         const giftId = uuidv4();
         
-        // Balance Check
-        const userDoc = await userDocRef.get();
-        if (!userDoc.exists) {
-            throw new Error("User not found.");
-        }
-        const user = userDoc.data() as UserProfile;
-        const currentBalance = user.availableBalance || 0;
+        // Use a transaction to ensure balance is sufficient and updated atomically
+        await runTransaction(adminDb, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists) {
+                throw new Error("User not found.");
+            }
 
-        if (currentBalance < amountInCents) {
-            throw new Error("Insufficient funds. Please add more to your balance.");
-        }
+            const user = userDoc.data() as UserProfile;
+            const currentBalance = user.availableBalance || 0;
+
+            if (currentBalance < amountInCents) {
+                throw new Error("Insufficient funds. Please add more to your balance.");
+            }
+
+            const newBalance = currentBalance - amountInCents;
+            transaction.update(userDocRef, { availableBalance: newBalance });
+        });
 
         // 1. Immediately create a "processing" gift in Firestore
         const newGift: Omit<Gift, 'id'> = {
