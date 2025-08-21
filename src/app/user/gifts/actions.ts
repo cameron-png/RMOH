@@ -15,9 +15,7 @@ const sendGiftSchema = z.object({
   recipientName: z.string().min(2, "Please enter a name."),
   recipientEmail: z.string().email("Please enter a valid email address."),
   brandCode: z.string().min(1, "Please select a brand."),
-  // The value from the form will be a currency string, e.g., "$25.00"
   amountInCents: z.string().transform(val => {
-    // Remove non-numeric characters except for the decimal point
     const numericVal = parseFloat(val.replace(/[^0-9.]/g, ''));
     return Math.round(numericVal * 100);
   }).pipe(z.number().min(500, "Amount must be at least $5.00.")),
@@ -40,7 +38,7 @@ async function getCurrentUser() {
         serviceAccount: {
             projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY!,
+            privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
         },
     });
     if (!tokens) return null;
@@ -81,7 +79,6 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
         const userDocRef = doc(adminDb, 'users', currentUser.uid);
         const giftId = uuidv4();
         
-        // Use a transaction to ensure atomicity
         const giftbitResponse = await runTransaction(adminDb, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists()) {
@@ -94,7 +91,6 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
                 throw new Error("Insufficient funds.");
             }
 
-            // Create the gift in Giftbit
             const giftPayload = {
                 brand_codes: [brandCode],
                 price_in_cents: amountInCents,
@@ -103,7 +99,6 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
             };
             const response = await createGift(giftPayload);
             
-            // If Giftbit call succeeds, update balance and create gift record
             const newBalance = currentBalance - amountInCents;
             transaction.update(userDocRef, { availableBalance: newBalance });
 
@@ -138,30 +133,19 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
 
 
 export async function getGiftLog(): Promise<Gift[]> {
-    const tokens = await getTokens(cookies(), {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-        cookieName: 'AuthToken',
-        cookieSignatureKeys: ['secret1', 'secret2'],
-        serviceAccount: {
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY!,
-        },
-    });
-
-    if (!tokens) return [];
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return [];
 
     try {
         const giftsQuery = query(
             collection(adminDb, "gifts"),
-            where("userId", "==", tokens.uid),
+            where("userId", "==", currentUser.uid),
             orderBy("createdAt", "desc"),
             limit(50)
         );
         const querySnapshot = await getDocs(giftsQuery);
         return querySnapshot.docs.map(doc => {
             const data = doc.data();
-            // Ensure createdAt is converted correctly for client-side usage
             return {
                 ...data,
                 createdAt: data.createdAt.toDate().toISOString(),
