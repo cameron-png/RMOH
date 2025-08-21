@@ -51,11 +51,10 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
     const { recipientName, recipientEmail, brandCode, amountInCents, userId } = validatedFields.data;
 
     try {
-        const db = adminDb;
-        const userDocRef = doc(db, 'users', userId);
+        const userDocRef = doc(adminDb, 'users', userId);
         const giftId = uuidv4();
         
-        const giftbitResponse = await runTransaction(db, async (transaction) => {
+        const giftbitResponse = await runTransaction(adminDb, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists()) {
                 throw new Error("User profile not found.");
@@ -81,7 +80,7 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
             const brandList = await getGiftbitBrands();
             const brandDetails = brandList.find(b => b.brand_code === brandCode);
 
-            const giftDocRef = doc(db, 'gifts', giftId);
+            const giftDocRef = doc(adminDb, 'gifts', giftId);
             transaction.set(giftDocRef, {
                 id: giftId,
                 userId: userId,
@@ -115,9 +114,8 @@ export async function getGiftLog(userId: string): Promise<Gift[]> {
     if (!userId) return [];
 
     try {
-        const db = adminDb;
         const giftsQuery = query(
-            collection(db, "gifts"),
+            collection(adminDb, "gifts"),
             where("userId", "==", userId),
             orderBy("createdAt", "desc"),
             limit(50)

@@ -4,27 +4,12 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
-function getAdminApp(): App {
-  if (getApps().length > 0) {
-    return getApp();
-  }
-  return initializeApp();
+// Initialize the app only if it's not already been initialized.
+if (!getApps().length) {
+  initializeApp();
 }
 
-function getAdminDb(): Firestore {
-    return getFirestore(getAdminApp());
-}
-
-function getAdminStorage(): Storage {
-    return getStorage(getAdminApp());
-}
-
-function getAdminAuth(): Auth {
-    return getAuth(getAdminApp());
-}
-
-
-export const adminApp = getAdminApp();
-export const adminDb = getAdminDb();
-export const adminStorage = getAdminStorage();
-export const adminAuth = getAdminAuth();
+export const adminApp: App = getApp();
+export const adminDb: Firestore = getFirestore(adminApp);
+export const adminStorage: Storage = getStorage(adminApp);
+export const adminAuth: Auth = getAuth(adminApp);
