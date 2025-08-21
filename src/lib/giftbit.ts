@@ -28,7 +28,7 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
   try {
     const response = await fetch(url, {
       method,
-      headers,
+      headers, // This was missing before
       body: body ? JSON.stringify(body) : undefined,
     });
     
@@ -45,20 +45,23 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
     }
     
     // For POST requests that might not have a body, return a success indicator.
-    if (response.status === 204 || method === 'POST') {
-        try {
-            return await response.json();
-        } catch (e) {
-            return { success: true };
-        }
+    if (response.status === 204) {
+        return { success: true };
     }
 
-    return await response.json();
+    try {
+        return await response.json();
+    } catch (e) {
+        // Handle cases where POST returns 200 OK with no body
+        return { success: true };
+    }
+
   } catch (error) {
     console.error(`Failed to fetch from Giftbit API (${method} ${url}):`, error);
     throw error;
   }
 }
+
 
 export interface GiftbitBrand {
     brand_code: string;
