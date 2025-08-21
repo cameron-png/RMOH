@@ -3,11 +3,11 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { initializeApp, getApps, getApp, App, deleteApp } from 'firebase-admin/app';
-import { getFirestore, doc, runTransaction, Timestamp, collection, getDocs, query, where, orderBy, limit, updateDoc } from 'firebase/firestore';
+import { doc, runTransaction, Timestamp, collection, getDocs, query, where, orderBy, limit, updateDoc } from 'firebase/firestore';
 import { GiftbitBrand, createGift as createGiftbitLink, listBrands } from '@/lib/giftbit';
 import { UserProfile, Gift } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { adminDb } from '@/lib/firebase/server';
 
 const createGiftSchema = z.object({
   brandCode: z.string().min(1, "Please select a brand."),
@@ -30,14 +30,6 @@ export type CreateGiftFormState = {
     message: string;
     gift?: Gift;
 };
-
-// Helper to ensure a single Firebase Admin app instance
-function getAdminApp(): App {
-    if (getApps().length > 0) {
-        return getApp();
-    }
-    return initializeApp();
-}
 
 
 export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
@@ -62,12 +54,11 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
     
     const { brandCode, amountInCents, userId } = validatedFields.data;
     const giftId = uuidv4();
-    const db = getFirestore(getAdminApp());
 
     try {
-        const userDocRef = doc(db, 'users', userId);
+        const userDocRef = doc(adminDb, 'users', userId);
         
-        const giftbitResponse = await runTransaction(db, async (transaction) => {
+        const giftbitResponse = await runTransaction(adminDb, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists()) {
                 throw new Error("User profile not found.");
@@ -104,7 +95,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
                 createdAt: Timestamp.now(),
             };
 
-            const giftDocRef = doc(db, 'gifts', giftId);
+            const giftDocRef = doc(adminDb, 'gifts', giftId);
             transaction.set(giftDocRef, newGift);
 
             return { giftbitResponse: response, createdGift: newGift };
@@ -131,11 +122,10 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
 export async function getGiftLog(userId: string): Promise<Gift[]> {
     if (!userId) return [];
-    const db = getFirestore(getAdminApp());
 
     try {
         const giftsQuery = query(
-            collection(db, "gifts"),
+            collection(adminDb, "gifts"),
             where("userId", "==", userId),
             orderBy("createdAt", "desc"),
             limit(50)
@@ -169,10 +159,9 @@ export async function sendGiftByEmail(prevState: any, formData: FormData): Promi
     }
 
     const { giftId, recipientName, recipientEmail } = validatedFields.data;
-    const db = getFirestore(getAdminApp());
 
     try {
-        const giftDocRef = doc(db, 'gifts', giftId);
+        const giftDocRef = doc(adminDb, 'gifts', giftId);
         await updateDoc(giftDocRef, {
             recipientName,
             recipientEmail,

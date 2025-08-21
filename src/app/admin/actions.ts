@@ -1,18 +1,8 @@
 
 'use server';
 
-import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { adminDb } from '@/lib/firebase/server';
 import { UserProfile, OpenHouse, FeedbackForm, AppSettings } from '@/lib/types';
-
-
-// Helper to ensure a single Firebase Admin app instance
-function getAdminApp(): App {
-    if (getApps().length > 0) {
-        return getApp();
-    }
-    return initializeApp();
-}
 
 
 function serializeTimestamps(obj: any): any {
@@ -37,11 +27,10 @@ function serializeTimestamps(obj: any): any {
 
 
 export async function getAdminDashboardData() {
-    const db = getFirestore(getAdminApp());
     try {
         let users: UserProfile[] = [];
         try {
-            const usersSnapshot = await db.collection('users').get();
+            const usersSnapshot = await adminDb.collection('users').get();
             users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as UserProfile);
         } catch (error: any) {
             if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
@@ -53,7 +42,7 @@ export async function getAdminDashboardData() {
 
         let openHouses: OpenHouse[] = [];
         try {
-            const housesSnapshot = await db.collection('openHouses').get();
+            const housesSnapshot = await adminDb.collection('openHouses').get();
             openHouses = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OpenHouse);
         } catch (error: any) {
             if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
@@ -65,7 +54,7 @@ export async function getAdminDashboardData() {
 
         let forms: FeedbackForm[] = [];
         try {
-            const formsSnapshot = await db.collection('feedbackForms').where('type', '==', 'global').get();
+            const formsSnapshot = await adminDb.collection('feedbackForms').where('type', '==', 'global').get();
             forms = formsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FeedbackForm);
         } catch (error: any) {
             if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
@@ -77,7 +66,7 @@ export async function getAdminDashboardData() {
         
         let settings: AppSettings = {};
         try {
-            const settingsDoc = await db.collection('settings').doc('appDefaults').get();
+            const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
             if (settingsDoc.exists) {
                 settings = settingsDoc.data() as AppSettings;
             }
