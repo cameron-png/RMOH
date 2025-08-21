@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Address {
@@ -113,9 +112,9 @@ export interface Gift {
     brandCode: string;
     brandName: string;
     amountInCents: number;
-    status: 'created' | 'sent' | 'claimed' | 'failed' | 'processing';
-    shortId: string;
-    claimUrl: string;
+    status: 'processing' | 'available' | 'failed';
+    shortId?: string;
+    claimUrl?: string;
     createdAt: Timestamp;
     errorMessage?: string;
 }

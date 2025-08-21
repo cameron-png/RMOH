@@ -1,20 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useActionState, useRef } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Copy, Loader2, Gift as GiftIcon } from 'lucide-react';
-import { createGiftLink } from './actions';
+import { PlusCircle, Copy, Loader2, Gift as GiftIcon, AlertCircle } from 'lucide-react';
+import { createGift } from './actions';
 import type { Gift, GiftbitBrand } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -26,31 +18,18 @@ import { db } from '@/lib/firebase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-
-function CreateGiftSubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? <Loader2 className="animate-spin mr-2" /> : <PlusCircle className="mr-2" />}
-      {pending ? 'Creating Link...' : 'Create Gift Link'}
-    </Button>
-  );
-}
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function GiftsPage() {
   const { user } = useAuth();
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [loadingGifts, setLoadingGifts] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
   const { toast } = useToast();
   const createFormRef = useRef<HTMLFormElement>(null);
 
-  const [createGiftState, createGiftAction] = useActionState(createGiftLink, {
-    success: false,
-    message: '',
-  });
-  
   useEffect(() => {
     async function fetchBrands() {
         try {
@@ -66,24 +45,6 @@ export default function GiftsPage() {
     }
     fetchBrands();
   }, [toast]);
-  
-  useEffect(() => {
-    if (createGiftState.message) {
-      if (createGiftState.success) {
-        toast({
-            title: 'Success!',
-            description: createGiftState.message,
-        });
-        createFormRef.current?.reset();
-      } else {
-        toast({
-            title: 'Error',
-            description: createGiftState.message,
-            variant: 'destructive',
-        });
-      }
-    }
-  }, [createGiftState, toast]);
 
   useEffect(() => {
     if (!user) return;
@@ -98,13 +59,37 @@ export default function GiftsPage() {
         const giftsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
         setGifts(giftsData);
         setLoadingGifts(false);
+    }, (error) => {
+        console.error("Error fetching gifts:", error);
+        toast({ title: 'Error', description: 'Could not load your gift log.', variant: 'destructive'});
+        setLoadingGifts(false);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, toast]);
+  
+  const handleCreateGift = async (formData: FormData) => {
+    startTransition(async () => {
+        const result = await createGift(formData);
+        if (result.success) {
+            toast({
+                title: 'Success!',
+                description: result.message,
+            });
+            createFormRef.current?.reset();
+        } else {
+            toast({
+                title: 'Error',
+                description: result.message,
+                variant: 'destructive',
+            });
+        }
+    });
+  };
 
 
-  const handleCopy = (textToCopy: string) => {
+  const handleCopy = (textToCopy: string | undefined) => {
+    if (!textToCopy) return;
     navigator.clipboard.writeText(textToCopy).then(() => {
         toast({ title: 'Copied to clipboard!' });
     });
@@ -124,9 +109,34 @@ export default function GiftsPage() {
     }
     return timestamp;
   };
+  
+  const renderStatus = (gift: Gift) => {
+    switch (gift.status) {
+        case 'processing':
+            return <Badge variant="secondary" className="animate-pulse">Processing</Badge>;
+        case 'available':
+            return <Badge className="bg-green-600 hover:bg-green-700">Available</Badge>;
+        case 'failed':
+            return (
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger>
+                           <Badge variant="destructive">Failed</Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                           <p className="max-w-xs">{gift.errorMessage}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                 </TooltipProvider>
+            );
+        default:
+            return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
 
   return (
     <>
+    <TooltipProvider>
     <div className="w-full mx-auto space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-1">
@@ -136,7 +146,7 @@ export default function GiftsPage() {
                         <CardDescription>Select a brand and amount to generate a shareable gift link.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form ref={createFormRef} action={createGiftAction} className="space-y-6">
+                        <form ref={createFormRef} action={handleCreateGift} className="space-y-6">
                             <input type="hidden" name="userId" value={user?.uid || ''} />
                             <div className="space-y-2">
                                 <Label htmlFor="brandCode">Brand</Label>
@@ -170,7 +180,10 @@ export default function GiftsPage() {
                                     />
                                 </div>
                             </div>
-                            <CreateGiftSubmitButton />
+                            <Button type="submit" disabled={isPending} className="w-full">
+                                {isPending ? <Loader2 className="animate-spin mr-2" /> : <PlusCircle className="mr-2" />}
+                                {isPending ? 'Processing...' : 'Create Gift Link'}
+                            </Button>
                         </form>
                     </CardContent>
                 </Card>
@@ -192,6 +205,7 @@ export default function GiftsPage() {
                                         <TableHead>Brand</TableHead>
                                         <TableHead>Amount</TableHead>
                                         <TableHead>Created</TableHead>
+                                        <TableHead>Status</TableHead>
                                         <TableHead className="w-[120px] text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -201,8 +215,9 @@ export default function GiftsPage() {
                                             <TableCell className="font-medium">{gift.brandName}</TableCell>
                                             <TableCell>{formatBalance(gift.amountInCents)}</TableCell>
                                             <TableCell>{format(toDate(gift.createdAt), 'MMM d, yyyy')}</TableCell>
+                                            <TableCell>{renderStatus(gift)}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button onClick={() => handleCopy(gift.claimUrl)} size="sm">
+                                                <Button onClick={() => handleCopy(gift.claimUrl)} size="sm" disabled={gift.status !== 'available'}>
                                                     <Copy className="mr-2 h-3 w-3"/>
                                                     Copy Link
                                                 </Button>
@@ -226,6 +241,7 @@ export default function GiftsPage() {
             </div>
         </div>
     </div>
+    </TooltipProvider>
     </>
   );
 }
