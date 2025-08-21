@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -99,11 +100,6 @@ export default function GiftsPage() {
   };
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not find user information.' });
-        return;
-    }
-
     const amountInCents = Math.round(parseFloat(values.amount) * 100);
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
@@ -317,3 +313,5 @@ export default function GiftsPage() {
     </>
   );
 }
+
+    
