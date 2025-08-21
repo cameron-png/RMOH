@@ -1,21 +1,19 @@
 // src/lib/firebase/server.ts
-import { getApps as getAdminApps, getApp as getAdminApp, initializeApp as initializeAdminApp, type App as AdminApp } from 'firebase-admin/app';
-import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
-import { getStorage as getAdminStorage } from 'firebase-admin/storage';
-import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
+import { getAuth } from 'firebase-admin/auth';
 
+let adminApp: App;
 
-let adminApp: AdminApp;
-
-if (getAdminApps().length === 0) {
-  adminApp = initializeAdminApp();
+if (!getApps().length) {
+  adminApp = initializeApp();
 } else {
-  adminApp = getAdminApp();
+  adminApp = getApp();
 }
 
-
-const adminDb = getAdminFirestore(adminApp);
-const adminStorage = getAdminStorage(adminApp);
-const adminAuth = getAdminAuth(adminApp);
+const adminDb = getFirestore(adminApp);
+const adminStorage = getStorage(adminApp);
+const adminAuth = getAuth(adminApp);
 
 export { adminDb, adminStorage, adminApp, adminAuth };
