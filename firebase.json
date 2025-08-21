@@ -10,7 +10,10 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ]
+    ],
+    "frameworksBackend": {
+      "sessionCookie": true
+    }
   },
   "storage": {
     "rules": "storage.rules"
