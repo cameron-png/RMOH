@@ -35,6 +35,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/user/open-house/[id]/page.js"
+    ],
+    "/user/feedback-forms/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/user/feedback-forms/page.js"
     ]
   }
 }

@@ -284,8 +284,8 @@ export default function GiftsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Recipient</TableHead>
-                        <TableHead>Gift</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Brand</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Link</TableHead>
                       </TableRow>
@@ -303,13 +303,13 @@ export default function GiftsPage() {
                             <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
                              <TableCell>
                                 {gift.brandCode ? (
-                                    <span>{gift.brandCode.charAt(0).toUpperCase() + gift.brandCode.slice(1)}</span>
+                                    <span>{MOCK_BRANDS.find(b => b.code === gift.brandCode)?.name || gift.brandCode}</span>
                                 ) : (
                                     <span>-</span>
                                 )}
                             </TableCell>
                             <TableCell>
-                                <Badge variant={gift.status === 'Available' ? 'default' : 'secondary'}>
+                                <Badge variant={gift.status === 'Available' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
                                     {gift.status}
                                 </Badge>
                             </TableCell>
@@ -328,7 +328,11 @@ export default function GiftsPage() {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={5} className="h-24 text-center">
-                            No gifts have been created yet.
+                             <div className="flex flex-col items-center gap-2">
+                                <GiftIcon className="h-8 w-8 text-muted-foreground" />
+                                <span className="font-medium">No Gifts Created Yet</span>
+                                <span className="text-sm text-muted-foreground">Click "Create Gift" to send your first one.</span>
+                             </div>
                           </TableCell>
                         </TableRow>
                       )}
