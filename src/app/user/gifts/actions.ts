@@ -7,6 +7,7 @@ import { createGift as createGiftbitLink } from '@/lib/giftbit';
 import { Gift } from '@/lib/types';
 
 const createGiftSchema = z.object({
+  brandCode: z.string().min(1, "Please select a brand."),
   amountInCents: z.string().transform(val => {
     const numericVal = parseFloat(val.replace(/[^0-9.]/g, ''));
     return Math.round(numericVal * 100);
@@ -21,6 +22,7 @@ export type CreateGiftFormState = {
 
 export async function createGiftLink(prevState: CreateGiftFormState, formData: FormData): Promise<CreateGiftFormState> {
     const validatedFields = createGiftSchema.safeParse({
+        brandCode: formData.get('brandCode'),
         amountInCents: formData.get('amountInCents'),
     });
 
@@ -32,14 +34,14 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         };
     }
     
-    const { amountInCents } = validatedFields.data;
+    const { brandCode, amountInCents } = validatedFields.data;
     const giftId = uuidv4();
 
     try {
         const giftPayload = {
+            brand_code: brandCode,
             price_in_cents: amountInCents,
             id: giftId,
-            region: "US", // Use Full Catalog option for US region
         };
 
         const giftbitResponse = await createGiftbitLink(giftPayload);
@@ -47,6 +49,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         const createdGift: Gift = {
             id: giftId,
             userId: '', // This is a transient gift, not yet saved to DB for a user
+            brandCode: brandCode,
             amountInCents,
             status: 'created',
             shortId: giftbitResponse.short_id,

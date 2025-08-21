@@ -17,9 +17,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlusCircle, Copy, Loader2, Gift } from 'lucide-react';
 import { createGiftLink } from './actions';
-import type { Gift } from '@/lib/types';
+import type { Gift, GiftbitBrand } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { listBrands } from '@/lib/giftbit';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 function CreateGiftSubmitButton() {
   const { pending } = useFormStatus();
@@ -35,6 +37,7 @@ export default function GiftsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
+  const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [amountValue, setAmountValue] = useState("");
   const [createdGift, setCreatedGift] = useState<Gift | null>(null);
 
@@ -46,6 +49,13 @@ export default function GiftsPage() {
     message: '',
   });
 
+  useEffect(() => {
+    async function fetchBrands() {
+        const brandList = await listBrands();
+        setBrands(brandList);
+    }
+    fetchBrands();
+  }, []);
   
   // Handle result of creating a gift link
   useEffect(() => {
@@ -118,7 +128,7 @@ export default function GiftsPage() {
        <Card>
         <CardHeader>
             <CardTitle>Create a Gift</CardTitle>
-            <CardDescription>Enter an amount to generate a shareable gift link that the recipient can use for any available brand.</CardDescription>
+            <CardDescription>Select a brand and amount to generate a shareable gift link.</CardDescription>
         </CardHeader>
         <CardContent>
             <Dialog open={isCreateDialogOpen} onOpenChange={(isOpen) => {
@@ -137,11 +147,26 @@ export default function GiftsPage() {
                 <DialogHeader>
                   <DialogTitle>Create a Gift Link</DialogTitle>
                   <DialogDescription>
-                    Enter an amount to generate a link. The recipient can choose their preferred brand.
+                    Select a brand and enter an amount to generate a link.
                   </DialogDescription>
                 </DialogHeader>
                 <form ref={createFormRef} action={createGiftAction} className="space-y-4 py-4">
                     <div className="space-y-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="brandCode">Brand</Label>
+                          <Select name="brandCode" required>
+                            <SelectTrigger id="brandCode">
+                                <SelectValue placeholder="Select a brand..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {brands.map(brand => (
+                                    <SelectItem key={brand.brand_code} value={brand.brand_code}>
+                                        {brand.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="grid gap-2">
                             <Label htmlFor="amountInCents">Amount (USD)</Label>
                             <div className="relative">
@@ -178,7 +203,7 @@ export default function GiftsPage() {
             <DialogHeader>
                 <DialogTitle>Gift Link Created!</DialogTitle>
                 <DialogDescription>
-                    Your {formatBalance(createdGift?.amountInCents)} gift link is ready. The recipient can choose any available brand. You can copy the link now to send it.
+                    Your {formatBalance(createdGift?.amountInCents)} gift link is ready. You can copy the link now to send it.
                 </DialogDescription>
             </DialogHeader>
              <div className="space-y-4 py-4">
