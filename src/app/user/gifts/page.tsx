@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Gift } from '@/lib/types';
 import { useForm } from 'react-hook-form';
@@ -100,6 +99,14 @@ export default function GiftsPage() {
   };
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Authentication Error',
+            description: 'You must be logged in to create a gift.',
+        });
+        return;
+    }
     const amountInCents = Math.round(parseFloat(values.amount) * 100);
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
@@ -112,24 +119,19 @@ export default function GiftsPage() {
     }
 
     try {
-        const response = await fetch('/api/gifts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                recipientName: values.recipientName,
-                recipientEmail: values.recipientEmail,
-                brandCode: values.brand,
-                amountInCents: amountInCents,
-            }),
-        });
+        const newGift = {
+            userId: user.uid,
+            recipientName: values.recipientName,
+            recipientEmail: values.recipientEmail,
+            brandCode: values.brand,
+            amountInCents: amountInCents,
+            type: 'Manual',
+            status: 'Pending' as const,
+            claimUrl: null,
+            createdAt: Timestamp.now(),
+        };
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || 'An unknown error occurred.');
-        }
+        await addDoc(collection(db, "gifts"), newGift);
 
         toast({
             title: 'Gift Created',
@@ -142,7 +144,7 @@ export default function GiftsPage() {
          toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.message || 'An unknown error occurred.',
+            description: 'Could not create the gift. Please try again.',
         });
     }
   }
@@ -313,5 +315,3 @@ export default function GiftsPage() {
     </>
   );
 }
-
-    
