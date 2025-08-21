@@ -26,20 +26,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/user/dashboard/page": [
+    "/api/auth/logout/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/user/dashboard/page.js"
+      "static/chunks/app/api/auth/logout/route.js"
     ],
-    "/user/open-house/[id]/page": [
+    "/admin/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/user/open-house/[id]/page.js"
+      "static/chunks/app/admin/layout.js"
     ],
-    "/user/feedback-forms/page": [
+    "/admin/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/user/feedback-forms/page.js"
+      "static/chunks/app/admin/page.js"
+    ],
+    "/_not-found/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

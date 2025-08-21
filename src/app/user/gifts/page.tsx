@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { processGift } from './actions';
 
 
 const giftFormSchema = z.object({
@@ -32,10 +34,10 @@ const giftFormSchema = z.object({
 
 // MOCK BRANDS - This will be replaced with API data later
 const MOCK_BRANDS = [
-    { code: 'amazon', name: 'Amazon' },
-    { code: 'starbucks', name: 'Starbucks' },
-    { code: 'target', name: 'Target' },
-    { code: 'walmart', name: 'Walmart' },
+    { code: 'amazonus', name: 'Amazon' },
+    { code: 'starbucksus', name: 'Starbucks' },
+    { code: 'targetus', name: 'Target' },
+    { code: 'walmartus', name: 'Walmart' },
 ];
 
 
@@ -119,7 +121,7 @@ export default function GiftsPage() {
     }
 
     try {
-        const newGift = {
+        const newGiftData = {
             userId: user.uid,
             recipientName: values.recipientName,
             recipientEmail: values.recipientEmail,
@@ -131,7 +133,7 @@ export default function GiftsPage() {
             createdAt: Timestamp.now(),
         };
 
-        await addDoc(collection(db, "gifts"), newGift);
+        const docRef = await addDoc(collection(db, "gifts"), newGiftData);
 
         toast({
             title: 'Gift Created',
@@ -139,6 +141,9 @@ export default function GiftsPage() {
         });
         setIsFormOpen(false);
         form.reset();
+
+        // Trigger background processing
+        processGift(docRef.id);
 
     } catch (error: any) {
          toast({
