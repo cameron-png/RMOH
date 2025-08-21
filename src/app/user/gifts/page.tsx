@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useActionState, useRef } from 'react';
+import { useState, useEffect, useActionState, useRef, useCallback } from 'react';
 import { useFormStatus } from 'react-dom';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import type { Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
 
 
 function SubmitButton() {
@@ -44,6 +45,7 @@ function SubmitButton() {
 }
 
 export default function GiftsPage() {
+  const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [giftLog, setGiftLog] = useState<Gift[]>([]);
@@ -65,14 +67,15 @@ export default function GiftsPage() {
     fetchBrands();
   }, []);
 
-  async function fetchGiftLog() {
-    const log = await getGiftLog();
+  const fetchGiftLog = useCallback(async () => {
+    if (!user?.uid) return;
+    const log = await getGiftLog(user.uid);
     setGiftLog(log as Gift[]);
-  }
+  }, [user]);
 
   useEffect(() => {
     fetchGiftLog();
-  }, []);
+  }, [fetchGiftLog]);
 
   useEffect(() => {
     if (sendGiftState.message) {
@@ -88,7 +91,7 @@ export default function GiftsPage() {
         fetchGiftLog(); // Refresh the log
       }
     }
-  }, [sendGiftState, toast]);
+  }, [sendGiftState, toast, fetchGiftLog]);
 
   const handleCopy = (textToCopy: string) => {
     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -113,16 +116,13 @@ export default function GiftsPage() {
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Allow only numbers and a single decimal point
     const numericValue = value.replace(/[^0-9.]/g, '');
     const parts = numericValue.split('.');
     
-    // Ensure only one decimal point
     if (parts.length > 2) {
       return;
     }
 
-    // Limit to 2 decimal places
     if (parts[1] && parts[1].length > 2) {
       parts[1] = parts[1].substring(0, 2);
     }
@@ -167,6 +167,7 @@ export default function GiftsPage() {
               </DialogDescription>
             </DialogHeader>
             <form ref={formRef} action={sendGiftAction} className="space-y-4 py-4">
+                <input type="hidden" name="userId" value={user?.uid || ''} />
                 <div className="space-y-4">
                     <div className="grid gap-2">
                         <Label htmlFor="recipientName">Recipient Name</Label>

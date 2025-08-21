@@ -4,10 +4,10 @@
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { doc, runTransaction, Timestamp, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { adminDb, adminAuth } from '@/lib/firebase/server';
+import { adminDb } from '@/lib/firebase/server';
 import { GiftbitBrand, createGift, listBrands } from '@/lib/giftbit';
 import { UserProfile, Gift } from '@/lib/types';
-import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 
 
 const sendGiftSchema = z.object({
@@ -18,6 +18,7 @@ const sendGiftSchema = z.object({
     const numericVal = parseFloat(val.replace(/[^0-9.]/g, ''));
     return Math.round(numericVal * 100);
   }).pipe(z.number().min(500, "Amount must be at least $5.00.")),
+  userId: z.string().min(1, "User ID is required."),
 });
 
 export type SendGiftFormState = {
@@ -29,40 +30,14 @@ export async function getGiftbitBrands(): Promise<GiftbitBrand[]> {
     return await listBrands();
 }
 
-async function getCurrentUser(): Promise<(UserProfile & { uid: string }) | null> {
-    const sessionCookie = cookies().get('__session')?.value;
-    if (!sessionCookie) {
-        return null;
-    }
-
-    try {
-        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-        const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
-        if (!userDoc.exists()) {
-            return null;
-        }
-        return {
-            uid: decodedToken.uid,
-            ...userDoc.data(),
-        } as UserProfile & { uid: string };
-    } catch (error) {
-        console.error("Error verifying session cookie:", error);
-        return null;
-    }
-}
-
 
 export async function sendGift(prevState: SendGiftFormState, formData: FormData): Promise<SendGiftFormState> {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-        return { success: false, message: 'You must be logged in to send a gift.' };
-    }
-
     const validatedFields = sendGiftSchema.safeParse({
         recipientName: formData.get('recipientName'),
         recipientEmail: formData.get('recipientEmail'),
         brandCode: formData.get('brandCode'),
         amountInCents: formData.get('amountInCents'),
+        userId: formData.get('userId'),
     });
 
     if (!validatedFields.success) {
@@ -73,10 +48,10 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
         };
     }
     
-    const { recipientName, recipientEmail, brandCode, amountInCents } = validatedFields.data;
+    const { recipientName, recipientEmail, brandCode, amountInCents, userId } = validatedFields.data;
 
     try {
-        const userDocRef = doc(adminDb, 'users', currentUser.uid);
+        const userDocRef = doc(adminDb, 'users', userId);
         const giftId = uuidv4();
         
         const giftbitResponse = await runTransaction(adminDb, async (transaction) => {
@@ -108,7 +83,7 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
             const giftDocRef = doc(adminDb, 'gifts', giftId);
             transaction.set(giftDocRef, {
                 id: giftId,
-                userId: currentUser.uid,
+                userId: userId,
                 recipientName,
                 recipientEmail,
                 brandCode,
@@ -122,6 +97,9 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
 
             return response;
         });
+        
+        revalidatePath('/user/gifts');
+        revalidatePath('/user/billing');
 
         return { success: true, message: `Gift sent successfully! Claim URL: ${giftbitResponse.claim_url}` };
 
@@ -132,14 +110,13 @@ export async function sendGift(prevState: SendGiftFormState, formData: FormData)
 }
 
 
-export async function getGiftLog(): Promise<Gift[]> {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) return [];
+export async function getGiftLog(userId: string): Promise<Gift[]> {
+    if (!userId) return [];
 
     try {
         const giftsQuery = query(
             collection(adminDb, "gifts"),
-            where("userId", "==", currentUser.uid),
+            where("userId", "==", userId),
             orderBy("createdAt", "desc"),
             limit(50)
         );
