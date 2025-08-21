@@ -39,7 +39,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
     try {
         const giftPayload = {
-            brand_code: brandCode,
+            brand_codes: [brandCode],
             price_in_cents: amountInCents,
             id: giftId,
         };

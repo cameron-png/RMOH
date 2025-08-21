@@ -77,11 +77,10 @@ export async function listBrands(): Promise<GiftbitBrand[]> {
 interface CreateGiftPayload {
     price_in_cents: number;
     id: string;
-    brand_code: string;
+    brand_codes: string[];
 }
 
 export async function createGift(payload: CreateGiftPayload) {
-    // The /direct_links endpoint is used to create a simple, direct link to a reward.
     const response = await fetchGiftbitAPI('direct_links', {
         method: 'POST',
         body: payload,
