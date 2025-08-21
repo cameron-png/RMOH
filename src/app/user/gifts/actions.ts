@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { createGift as createGiftbitLink } from '@/lib/giftbit';
-import { Gift } from '@/lib/types';
+import { Gift, GiftbitBrand } from '@/lib/types';
 
 const createGiftSchema = z.object({
   brandCode: z.string().min(1, "Please select a brand."),
