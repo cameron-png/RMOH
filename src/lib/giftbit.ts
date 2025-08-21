@@ -41,7 +41,7 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
             errorDetails = await response.text();
         }
         console.error(`Giftbit API Error (${response.status}):`, errorDetails);
-        throw new Error(`Giftbit API request failed with status ${response.status}.`);
+        throw new Error(`Giftbit API request failed with status ${response.status}. Details: ${errorDetails}`);
     }
 
     return await response.json();
@@ -81,6 +81,7 @@ interface CreateGiftPayload {
 }
 
 export async function createGift(payload: CreateGiftPayload) {
+    // The /direct_links endpoint is used to create a simple, direct link to a reward.
     const response = await fetchGiftbitAPI('direct_links', {
         method: 'POST',
         body: payload,
