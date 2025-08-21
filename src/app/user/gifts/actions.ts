@@ -47,6 +47,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         
         // The API returns the link object directly. Check for its properties.
         if (!giftbitResponse || !giftbitResponse.short_id || !giftbitResponse.claim_url) {
+             console.error('Invalid Giftbit response structure:', giftbitResponse);
              throw new Error("Received an invalid or empty response from the Giftbit API.");
         }
         
