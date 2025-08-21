@@ -113,7 +113,7 @@ export default function GiftsPage() {
   };
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
-    if (!user?.name) {
+    if (!user) {
         toast({ variant: 'destructive', title: 'Error', description: 'Could not find user information.' });
         return;
     }
