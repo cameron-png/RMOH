@@ -106,3 +106,5 @@ export interface Gift {
 export interface AppSettings {
     defaultGlobalFormId?: string;
 }
+
+    
