@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,24 +20,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { createGift } from './actions';
 
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
   recipientEmail: z.string().email("Please enter a valid email address."),
   brand: z.string().min(1, "Please select a brand."),
-  amount: z.string().min(1, "Please select an amount."),
-  customAmount: z.string().optional(),
-}).refine(data => {
-    if (data.amount === 'custom') {
-        // Ensure customAmount is a valid number string if amount is custom
-        return !!data.customAmount && !isNaN(parseFloat(data.customAmount));
-    }
-    return true;
-}, {
-    message: "A valid custom amount is required.",
-    path: ['customAmount'],
+  amount: z.string().min(1, "Please enter an amount."),
 });
 
 
@@ -65,11 +53,8 @@ export default function GiftsPage() {
       recipientEmail: '',
       brand: '',
       amount: '',
-      customAmount: '',
     },
   });
-
-  const watchAmount = form.watch('amount');
 
   const fetchGifts = useCallback(() => {
     if (!user) return;
@@ -119,12 +104,7 @@ export default function GiftsPage() {
         return;
     }
 
-    let amountInCents: number;
-    if (values.amount === 'custom') {
-        amountInCents = Math.round(parseFloat(values.customAmount || "0") * 100);
-    } else {
-        amountInCents = parseInt(values.amount, 10);
-    }
+    const amountInCents = Math.round(parseFloat(values.amount) * 100);
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
         toast({
@@ -135,26 +115,38 @@ export default function GiftsPage() {
         return;
     }
 
-    const result = await createGift({
-        userId: user.uid,
-        recipientName: values.recipientName,
-        recipientEmail: values.recipientEmail,
-        brandCode: values.brand,
-        amountInCents: amountInCents,
-    });
-    
-    if (result.success) {
+    try {
+        const response = await fetch('/api/gifts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                recipientName: values.recipientName,
+                recipientEmail: values.recipientEmail,
+                brandCode: values.brand,
+                amountInCents: amountInCents,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'An unknown error occurred.');
+        }
+
         toast({
             title: 'Gift Created',
             description: 'Your gift is being processed and will appear in the log.',
         });
         setIsFormOpen(false);
         form.reset();
-    } else {
-        toast({
+
+    } catch (error: any) {
+         toast({
             variant: 'destructive',
             title: 'Error',
-            description: result.message || 'An unknown error occurred.',
+            description: error.message || 'An unknown error occurred.',
         });
     }
   }
@@ -229,42 +221,19 @@ export default function GiftsPage() {
                                 </FormItem>
                                 )}
                             />
-                            <FormField
+                             <FormField
                                 control={form.control}
                                 name="amount"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Amount</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                            <SelectValue placeholder="Select an amount..." />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="500">$5.00</SelectItem>
-                                            <SelectItem value="1000">$10.00</SelectItem>
-                                            <SelectItem value="1500">$15.00</SelectItem>
-                                            <SelectItem value="custom">Custom</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <FormLabel>Amount ($)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 25.00" {...field} />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
                             />
-                            {watchAmount === 'custom' && (
-                                <FormField
-                                    control={form.control}
-                                    name="customAmount"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Custom Amount ($)</FormLabel>
-                                        <FormControl><Input type="number" placeholder="e.g., 25.00" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            )}
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={form.formState.isSubmitting}>
