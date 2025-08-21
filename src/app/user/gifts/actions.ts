@@ -3,8 +3,9 @@
 
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { createGiftbitLink } from '@/lib/giftbit';
+import { createGiftbitLink, getGiftbitLink } from '@/lib/giftbit';
 import type { Gift } from '@/lib/types';
+import { sleep } from '@/lib/utils';
 
 const createGiftSchema = z.object({
   brandCode: z.string().min(1, "Please select a brand."),
@@ -39,27 +40,36 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
     const giftId = uuidv4();
 
     try {
-        const giftbitResponse = await createGiftbitLink({
+        // Step 1: POST to create the gift order.
+        await createGiftbitLink({
             brand_codes: [brandCode],
             price_in_cents: amountInCents,
             id: giftId,
         });
-        
-        // The API returns the link object directly. Check for its properties.
-        if (!giftbitResponse || !giftbitResponse.short_id || !giftbitResponse.claim_url) {
-             console.error('Invalid Giftbit response structure:', giftbitResponse);
-             throw new Error("Received an invalid or empty response from the Giftbit API.");
+
+        // Step 2: Wait for a moment for Giftbit to process.
+        await sleep(2000); // 2-second delay
+
+        // Step 3: GET the generated link details.
+        const giftbitResponse = await getGiftbitLink(giftId);
+
+        // The GET /links/{id} response contains an array of links. We want the first one.
+        const linkDetails = giftbitResponse?.links?.[0];
+
+        if (!linkDetails || !linkDetails.short_id || !linkDetails.claim_url) {
+             console.error('Invalid Giftbit GET response structure:', giftbitResponse);
+             throw new Error("Could not retrieve the generated gift link from Giftbit.");
         }
         
         const createdGift: Gift = {
             id: giftId,
             userId: '', // This is a transient gift, not saved to DB
             brandCode: brandCode,
-            brandName: giftbitResponse.brands[0]?.name || brandCode,
+            brandName: linkDetails.brands?.[0]?.name || brandCode,
             amountInCents,
             status: 'created',
-            shortId: giftbitResponse.short_id,
-            claimUrl: giftbitResponse.claim_url,
+            shortId: linkDetails.short_id,
+            claimUrl: linkDetails.claim_url,
             createdAt: new Date(), 
         };
         
@@ -70,7 +80,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
         };
 
     } catch (error: any) {
-        console.error('Error creating Giftbit link:', error);
+        console.error('Error in two-step gift creation process:', error);
         return { success: false, message: error.message || 'An unexpected error occurred while creating the gift.' };
     }
 }

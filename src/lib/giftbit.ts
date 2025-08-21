@@ -36,19 +36,26 @@ async function fetchGiftbitAPI(endpoint: string, options: FetchOptions = {}) {
         let errorDetails = 'No details available.';
         try {
             const errorJson = await response.json();
-            // Extract the user-friendly message if available
             errorDetails = errorJson?.errors?.[0]?.message || JSON.stringify(errorJson);
         } catch (e) {
             errorDetails = await response.text();
         }
-        console.error(`Giftbit API Error (${response.status}):`, errorDetails);
+        console.error(`Giftbit API Error (${response.status}) on ${method} ${url}:`, errorDetails);
         throw new Error(`Giftbit API request failed: ${errorDetails}`);
+    }
+    
+    // For POST requests that might not have a body, return a success indicator.
+    if (response.status === 204 || method === 'POST') {
+        try {
+            return await response.json();
+        } catch (e) {
+            return { success: true };
+        }
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Failed to fetch from Giftbit API:', error);
-    // Re-throw the original error which might have more context
+    console.error(`Failed to fetch from Giftbit API (${method} ${url}):`, error);
     throw error;
   }
 }
@@ -87,11 +94,15 @@ interface CreateGiftPayload {
     brand_codes: string[];
 }
 
+// Step 1: POST the order
 export async function createGiftbitLink(payload: CreateGiftPayload) {
-    const response = await fetchGiftbitAPI('direct_links', {
+    return await fetchGiftbitAPI('direct_links', {
         method: 'POST',
         body: payload,
     });
-    // The create direct link response returns the link object directly
-    return response;
+}
+
+// Step 2: GET the created link
+export async function getGiftbitLink(id: string) {
+    return await fetchGiftbitAPI(`links/${id}`);
 }
