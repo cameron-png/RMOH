@@ -1,15 +1,31 @@
+
 // src/lib/firebase/server.ts
 import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
-// Initialize the app only if it's not already been initialized.
-if (!getApps().length) {
-  initializeApp();
+function getAdminApp(): App {
+    if (getApps().length === 0) {
+        return initializeApp();
+    }
+    return getApp();
 }
 
-export const adminApp: App = getApp();
-export const adminDb: Firestore = getFirestore(adminApp);
-export const adminStorage: Storage = getStorage(adminApp);
-export const adminAuth: Auth = getAuth(adminApp);
+export function getAdminDb(): Firestore {
+    return getFirestore(getAdminApp());
+}
+
+export function getAdminStorage(): Storage {
+    return getStorage(getAdminApp());
+}
+
+export function getAdminAuth(): Auth {
+    return getAuth(getAdminApp());
+}
+
+// For backwards compatibility with any files that might still be using the constants
+export const adminApp = getAdminApp();
+export const adminDb = getAdminDb();
+export const adminStorage = getAdminStorage();
+export const adminAuth = getAdminAuth();

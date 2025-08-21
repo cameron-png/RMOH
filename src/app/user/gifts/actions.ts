@@ -53,11 +53,12 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
     
     const { brandCode, amountInCents, userId } = validatedFields.data;
     const giftId = uuidv4();
+    const db = adminDb;
 
     try {
-        const userDocRef = doc(adminDb, 'users', userId);
+        const userDocRef = doc(db, 'users', userId);
         
-        const giftbitResponse = await runTransaction(adminDb, async (transaction) => {
+        const giftbitResponse = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists()) {
                 throw new Error("User profile not found.");
@@ -94,7 +95,7 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
                 createdAt: Timestamp.now(),
             };
 
-            const giftDocRef = doc(adminDb, 'gifts', giftId);
+            const giftDocRef = doc(db, 'gifts', giftId);
             transaction.set(giftDocRef, newGift);
 
             return { giftbitResponse: response, createdGift: newGift };
@@ -121,10 +122,11 @@ export async function createGiftLink(prevState: CreateGiftFormState, formData: F
 
 export async function getGiftLog(userId: string): Promise<Gift[]> {
     if (!userId) return [];
+    const db = adminDb;
 
     try {
         const giftsQuery = query(
-            collection(adminDb, "gifts"),
+            collection(db, "gifts"),
             where("userId", "==", userId),
             orderBy("createdAt", "desc"),
             limit(50)
@@ -158,9 +160,10 @@ export async function sendGiftByEmail(prevState: any, formData: FormData): Promi
     }
 
     const { giftId, recipientName, recipientEmail } = validatedFields.data;
+    const db = adminDb;
 
     try {
-        const giftDocRef = doc(adminDb, 'gifts', giftId);
+        const giftDocRef = doc(db, 'gifts', giftId);
         await updateDoc(giftDocRef, {
             recipientName,
             recipientEmail,
