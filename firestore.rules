@@ -1,20 +1,76 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can only read and update their own document.
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
+    // Helper function to check if the user is the owner of a document.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // Users can create gifts linked to their own userId.
-    // Users can read gifts they have sent.
-    match /gifts/{giftId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    // Helper function to check if the user is an authenticated user.
+    function isSignedIn() {
+      return request.auth != null;
     }
     
-    // Default deny all other access
+    // Helper function to check if the user is an admin.
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // USERS
+    // Users can only read/write their own profile.
+    // Admins can read/write any user profile.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    
+    // OPEN HOUSES
+    // Users can create, read, update, and delete their own open houses.
+    // Admins can read any open house.
+    match /openHouses/{houseId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+    
+    // LEADS
+    // Leads can be created by anyone (for the visitor form).
+    // Users can read, update, delete their own leads.
+    // Admins can read any lead.
+    match /leads/{leadId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      // Allow creation if the request is from the owner, OR if there's no auth (visitor form)
+      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid) || !isSignedIn();
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+
+    // FEEDBACK FORMS
+    // Global forms are readable by any authenticated user.
+    // Custom forms are only readable/writable by their owner.
+    // Admins can read/write any form.
+    match /feedbackForms/{formId} {
+      allow read: if (resource.data.type == 'global' && isSignedIn()) || isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; // Must be custom
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin(); // Only custom forms can be edited/deleted by user
+    }
+    
+    // FEEDBACK SUBMISSIONS
+    // Submissions can be created by anyone (for the visitor form).
+    // Users can only read submissions linked to their own userId.
+    // Admins can read any submission.
+    match /feedbackSubmissions/{submissionId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      // Allow creation if the request is from the owner, OR if there's no auth (visitor form)
+      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid) || !isSignedIn();
+    }
+    
+    // SETTINGS
+    // Settings are readable by authenticated users and writable only by admins.
+    match /settings/{settingId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
   }
 }
