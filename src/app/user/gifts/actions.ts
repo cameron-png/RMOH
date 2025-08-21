@@ -1,9 +1,9 @@
 
 'use server';
 
-import { addDoc, collection, doc, getDoc, runTransaction, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import { adminDb } from '@/lib/firebase/server';
-import { Gift, UserProfile } from '@/lib/types';
+import { Gift } from '@/lib/types';
 
 interface CreateGiftParams {
     userId: string;
