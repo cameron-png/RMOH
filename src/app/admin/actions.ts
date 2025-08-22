@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
+import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
 
 
@@ -104,19 +104,19 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
         });
 
         if (!brandsResponse.ok) {
-            console.error('Giftbit API Error:', {
-                brandsStatus: brandsResponse.status,
+            console.error('Giftbit API Error fetching brands:', {
+                status: brandsResponse.status,
+                body: await brandsResponse.text()
             });
-            throw new Error('Failed to fetch data from Giftbit.');
+            throw new Error('Failed to fetch brand data from Giftbit.');
         }
 
         const brandsData = await brandsResponse.json();
-
-        // Filter for brands available in the US
+        
         const usBrands = (brandsData.brands || []).filter((brand: any) => 
             brand.region_codes.includes("us")
         );
-
+        
         return {
             brands: usBrands,
         };
