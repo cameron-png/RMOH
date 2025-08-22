@@ -56,6 +56,7 @@ export default function GiftsPage() {
   
   const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
   const [giftDataToCreate, setGiftDataToCreate] = useState<z.infer<typeof giftFormSchema> | null>(null);
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
 
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
@@ -74,6 +75,7 @@ export default function GiftsPage() {
     setSelectedBrand(brand || null);
     form.setValue('brand', brandCode);
     form.setValue('amount', ''); // Reset amount when brand changes
+    setShowCustomAmount(false);
     form.clearErrors('amount');
   };
   
@@ -291,6 +293,23 @@ export default function GiftsPage() {
       setGiftToDecline(null);
     }
   };
+
+    const AmountButton = ({ value }: { value: number }) => {
+        const amountString = value.toString();
+        const currentAmount = form.getValues('amount');
+        return (
+            <Button
+                type="button"
+                variant={currentAmount === amountString && !showCustomAmount ? 'default' : 'outline'}
+                onClick={() => {
+                    form.setValue('amount', amountString, { shouldValidate: true });
+                    setShowCustomAmount(false);
+                }}
+            >
+                ${value}
+            </Button>
+        );
+    };
   
   return (
     <>
@@ -307,6 +326,7 @@ export default function GiftsPage() {
                  if (!isOpen) {
                      form.reset();
                      setSelectedBrand(null);
+                     setShowCustomAmount(false);
                  }
              }}>
                 <DialogTrigger asChild>
@@ -347,52 +367,75 @@ export default function GiftsPage() {
                                     )}
                                 />
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="brand"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Brand</FormLabel>
-                                        <Select onValueChange={handleBrandChange} disabled={loadingBrands} value={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {loadingBrands ? (
-                                                    <div className="flex items-center justify-center p-4">
-                                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                    </div>
-                                                ) : (
-                                                    brands.map((brand) => (
-                                                        <SelectItem key={brand.brand_code} value={brand.brand_code}>
-                                                        {brand.name}
-                                                        </SelectItem>
-                                                    ))
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="amount"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Amount ($)</FormLabel>
+                            <FormField
+                                control={form.control}
+                                name="brand"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Brand</FormLabel>
+                                    <Select onValueChange={handleBrandChange} disabled={loadingBrands} value={field.value}>
                                         <FormControl>
-                                            <Input type="number" placeholder="e.g., 25.00" {...field} disabled={!selectedBrand} />
+                                            <SelectTrigger>
+                                            <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
+                                            </SelectTrigger>
                                         </FormControl>
-                                        <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                             </div>
+                                        <SelectContent>
+                                            {loadingBrands ? (
+                                                <div className="flex items-center justify-center p-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                </div>
+                                            ) : (
+                                                brands.map((brand) => (
+                                                    <SelectItem key={brand.brand_code} value={brand.brand_code}>
+                                                    {brand.name}
+                                                    </SelectItem>
+                                                ))
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="amount"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Amount</FormLabel>
+                                    <FormControl>
+                                        <>
+                                            <div className="flex gap-2">
+                                                <AmountButton value={5} />
+                                                <AmountButton value={10} />
+                                                <AmountButton value={15} />
+                                                <Button
+                                                    type="button"
+                                                    variant={showCustomAmount ? 'default' : 'outline'}
+                                                    onClick={() => {
+                                                        setShowCustomAmount(true);
+                                                        form.setValue('amount', '');
+                                                    }}
+                                                >
+                                                    Custom
+                                                </Button>
+                                            </div>
+                                            {showCustomAmount && (
+                                                <Input 
+                                                    type="number" 
+                                                    placeholder="Enter amount" 
+                                                    {...field}
+                                                    className="mt-2"
+                                                    autoFocus
+                                                />
+                                            )}
+                                        </>
+                                    </FormControl>
+                                    <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                              <FormField
                                 control={form.control}
                                 name="message"
