@@ -146,6 +146,12 @@ export function DashboardSidebar() {
                     <span>Profile</span>
                 </Link>
             </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+                <Link href="/user/billing" onClick={handleLinkClick}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Billing</span>
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => {
                 handleLinkClick();
