@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"app/user/profile/page.tsx -> firebase/firestore":{"id":5317,"files":[]}}';
