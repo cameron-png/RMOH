@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { processGift, getGiftbitBrands } from './actions';
+import { processGift, getGiftConfigurationForUser } from './actions';
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
@@ -106,13 +106,13 @@ export default function GiftsPage() {
 
   // Fetch brands when the page loads, not just when dialog opens
   useEffect(() => {
-    async function loadBrands() {
+    async function loadConfiguration() {
       if (!user?.region) return;
 
       setLoadingBrands(true);
       try {
-        const fetchedBrands = await getGiftbitBrands(user.region);
-        setBrands(fetchedBrands);
+        const { brands } = await getGiftConfigurationForUser(user.region);
+        setBrands(brands);
       } catch (error) {
         toast({
           variant: 'destructive',
@@ -124,7 +124,7 @@ export default function GiftsPage() {
       }
     }
     if(user){
-        loadBrands();
+        loadConfiguration();
     }
   }, [toast, user]);
 

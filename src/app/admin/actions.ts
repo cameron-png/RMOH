@@ -3,6 +3,7 @@
 
 import { adminDb } from '@/lib/firebase/server';
 import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
+import { Timestamp } from 'firebase-admin/firestore';
 
 
 function serializeTimestamps(obj: any): any {
@@ -28,63 +29,59 @@ function serializeTimestamps(obj: any): any {
 
 export async function getAdminDashboardData() {
     try {
-        let users: UserProfile[] = [];
-        try {
-            const usersSnapshot = await adminDb.collection('users').get();
-            users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as UserProfile);
-        } catch (error: any) {
-            if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
-                console.log("Admin Dashboard: 'users' collection not found, returning empty array.");
-            } else {
-                throw error; // Re-throw other errors
-            }
-        }
+        const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-        let openHouses: OpenHouse[] = [];
-        try {
-            const housesSnapshot = await adminDb.collection('openHouses').get();
-            openHouses = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OpenHouse);
-        } catch (error: any) {
-            if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
-                console.log("Admin Dashboard: 'openHouses' collection not found, returning empty array.");
-            } else {
-                throw error;
-            }
-        }
+        // Fetch all collections in parallel
+        const [usersSnapshot, housesSnapshot, formsSnapshot, settingsDoc, giftsSnapshot] = await Promise.all([
+            adminDb.collection('users').get(),
+            adminDb.collection('openHouses').get(),
+            adminDb.collection('feedbackForms').where('type', '==', 'global').get(),
+            adminDb.collection('settings').doc('appDefaults').get(),
+            adminDb.collection('gifts').get()
+        ]);
 
-        let forms: FeedbackForm[] = [];
-        try {
-            const formsSnapshot = await adminDb.collection('feedbackForms').where('type', '==', 'global').get();
-            forms = formsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FeedbackForm);
-        } catch (error: any) {
-            if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
-                console.log("Admin Dashboard: 'feedbackForms' collection not found, returning empty array.");
-            } else {
-                throw error;
-            }
-        }
+        // Process Users
+        const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as UserProfile);
+        const newUsers7Days = users.filter(u => u.createdAt && u.createdAt >= sevenDaysAgo).length;
+
+        // Process Open Houses
+        const openHouses = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OpenHouse);
+        const newOpenHouses7Days = openHouses.filter(h => h.createdAt && h.createdAt >= sevenDaysAgo).length;
         
-        let settings: AppSettings = {};
-        try {
-            const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
-            if (settingsDoc.exists) {
-                settings = settingsDoc.data() as AppSettings;
-            }
-        } catch (error: any) {
-             if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
-                console.log("Admin Dashboard: 'settings' collection not found, returning empty object.");
-            } else {
-                throw error;
-            }
-        }
+        // Process Gifts
+        const gifts = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Gift));
+        const newGifts7Days = gifts.filter(g => g.createdAt && g.createdAt >= sevenDaysAgo).length;
+
+
+        // Process Forms
+        const forms = formsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FeedbackForm);
+        
+        // Process Settings
+        const settings = settingsDoc.exists ? settingsDoc.data() as AppSettings : {};
         
         return {
+            stats: {
+                totalUsers: users.length,
+                newUsers7Days,
+                totalOpenHouses: openHouses.length,
+                newOpenHouses7Days,
+                totalGifts: gifts.length,
+                newGifts7Days,
+            },
             users: serializeTimestamps(users),
             openHouses: serializeTimestamps(openHouses),
             forms: serializeTimestamps(forms),
             settings: serializeTimestamps(settings),
         };
     } catch (error: any) {
+        // Gracefully handle cases where collections might not exist yet
+        if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
+             console.log("A required collection was not found, returning default empty/zero values.");
+             return {
+                stats: { totalUsers: 0, newUsers7Days: 0, totalOpenHouses: 0, newOpenHouses7Days: 0, totalGifts: 0, newGifts7Days: 0 },
+                users: [], openHouses: [], forms: [], settings: {}
+             }
+        }
         console.error("Error in getAdminDashboardData:", error);
         throw new Error("Failed to fetch admin dashboard data: " + error.message);
     }
@@ -146,9 +143,6 @@ export async function getAvailableGiftbitRegionsAndBrands(): Promise<{ regions: 
             };
         });
         
-        // The /brands endpoint does not provide region codes, so we have to assume based on common brand suffixes
-        // or other business logic. For this app, we will assume a brand is available in a region if its brand_code
-        // ends with the region code (e.g., "AMAZONUS" is in "us"). This is a limitation of the API design.
         const processedBrands = (brandsData.brands || []).map((brand: any) => {
             const potentialRegionCodes: string[] = [];
             if (brand.brand_code.endsWith("CA")) potentialRegionCodes.push("ca");
@@ -239,3 +233,64 @@ export async function getAdminGiftData(): Promise<AdminGift[]> {
         throw new Error("Failed to fetch admin gift data: " + error.message);
     }
 }
+
+
+export async function cancelGiftbitReward(giftId: string): Promise<{ success: boolean; message: string }> {
+    if (!GIFTBIT_API_KEY) {
+        return { success: false, message: 'GIFTBIT_API_KEY is not configured on the server.' };
+    }
+
+    try {
+        const response = await fetch(`${GIFTBIT_BASE_URL}/gifts/${giftId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+        });
+
+        if (response.ok) {
+            // Update the status in our Firestore database
+            const giftRef = adminDb.collection('gifts').doc(giftId);
+            await giftRef.update({ status: 'Cancelled' });
+            return { success: true, message: 'Gift successfully cancelled.' };
+        } else {
+            const errorBody = await response.json();
+            const errorMessage = errorBody.errors?.[0]?.message || 'Failed to cancel gift.';
+            console.error('Giftbit Cancel API Error:', errorBody);
+            return { success: false, message: errorMessage };
+        }
+    } catch (error: any) {
+        console.error('Error cancelling Giftbit reward:', error);
+        return { success: false, message: 'An unexpected error occurred.' };
+    }
+}
+
+
+export async function getGiftbitBalance(): Promise<number | null> {
+    if (!GIFTBIT_API_KEY) {
+        console.log('GIFTBIT_API_KEY is not configured on the server.');
+        return null;
+    }
+
+    try {
+        const response = await fetch(`${GIFTBIT_BASE_URL}/funds`, {
+            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+            next: { revalidate: 300 } // Revalidate every 5 minutes
+        });
+
+        if (!response.ok) {
+            console.error('Giftbit Funds API Error:', {
+                status: response.status,
+                body: await response.text(),
+            });
+            throw new Error('Failed to fetch balance from Giftbit.');
+        }
+
+        const data = await response.json();
+        return data.balance_in_cents;
+
+    } catch (error: any) {
+        console.error('Error fetching Giftbit balance:', error.message);
+        return null; // Return null on error so the UI can handle it gracefully
+    }
+}
+
+    

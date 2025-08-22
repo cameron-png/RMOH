@@ -1,68 +1,50 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Users Collection
+    // Users can only read/write their own profile
     match /users/{userId} {
-      // Allow public read for visitor pages
-      allow get: if true;
-      // Users can only read and write their own profile
-      allow list, write: if isAuthenticated() && isOwner(userId);
-    }
-    
-    // Settings Collection
-    match /settings/appDefaults {
-      // Allow logged-in users to read app default settings
-      allow get: if isAuthenticated();
-      // Only admins should write to app settings
-      allow write: if isAuthenticated() && request.auth.token.isAdmin == true;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
     }
 
-    // OpenHouses Collection
+    // OpenHouses can be read by anyone, but only created, updated, or deleted by the owner
     match /openHouses/{houseId} {
-      // Allow public read for visitor page
-      allow get: if true;
-      // Only the owner can read their list of houses and write to them
-      allow list, write: if isAuthenticated() && isOwner(request.resource.data.userId);
-    }
-
-    // FeedbackForms Collection
-    match /feedbackForms/{formId} {
-      // Allow any authenticated user to read global forms
-      allow get: if isAuthenticated() && resource.data.type == 'global';
-      // Custom forms can only be read/written by their owner
-      allow get, list, write: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // Leads & FeedbackSubmissions
-    match /{path=**}/leads/{leadId} {
-      // Only the owner of the record can read/write
-      allow read, write: if isAuthenticated() && isOwner(request.resource.data.userId);
-    }
-
-    match /{path=**}/feedbackSubmissions/{submissionId} {
-      // Allow anyone to create feedback
-      allow create: if true;
-      // Only owner can read
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      // No updates or deletes allowed
-      allow update, delete: if false;
+        allow get: if true;
+        allow list, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
     
-    // Gifts Collection
-     match /gifts/{giftId} {
-        // Users can only read/write their own gifts
-        allow read, write: if isAuthenticated() && isOwner(request.resource.data.userId);
-     }
+    match /feedbackForms/{formId} {
+        // Allow authenticated users to read global forms
+        allow get: if request.auth != null && resource.data.type == 'global';
+        // Allow users to list their own custom forms, and all global forms
+        allow list: if request.auth != null;
+        // Allow users to CRUD their own custom forms
+        allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /feedbackSubmissions/{submissionId} {
+        // Allow creation by anyone (visitors)
+        allow create: if true;
+        // Only the user who owns the open house can read/update/delete submissions
+        allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/openHouses/$(request.resource.data.openHouseId)).data.userId == request.auth.uid;
+    }
+
+    match /leads/{leadId} {
+        allow create: if true;
+        allow read, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Gifts can only be managed by the user who created them
+    match /gifts/{giftId} {
+        allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Settings are only writable only by admins, but appDefaults are readable by any authenticated user
+    match /settings/{docId} {
+        allow get: if request.auth != null && docId == 'appDefaults';
+        allow list, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
   }
 }

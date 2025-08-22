@@ -4,7 +4,6 @@
 import { adminDb } from '@/lib/firebase/server';
 import { Gift, UserProfile, GiftbitBrand, GiftbitRegion, AppSettings } from '@/lib/types';
 import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
-import { sleep } from '@/lib/utils';
 import { FieldValue } from 'firebase-admin/firestore';
 
 
@@ -12,90 +11,49 @@ const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
-const regionCurrencyMap: { [key: string]: string } = {
-    'ca': 'CAD',
-    'us': 'USD',
-    'au': 'AUD',
-    'global': 'USD'
-};
 
-function getRegionCodeFromName(name: string): string {
-    if (name === "USA") return "us";
-    if (name === "Canada") return "ca";
-    if (name === "Australia") return "au";
-    return name.toLowerCase();
-}
-
-
-export async function getGiftbitRegions(): Promise<GiftbitRegion[]> {
+export async function getGiftConfigurationForUser(userRegion: string): Promise<{ brands: GiftbitBrand[] }> {
     if (!GIFTBIT_API_KEY) {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
     }
     
-    // First, get enabled regions from settings
-    const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
-    const settings = settingsDoc.data() as AppSettings;
-    const enabledRegionCodes = settings?.giftbit?.enabledRegionCodes;
+    try {
+        // First, get enabled brands from app settings using the Admin SDK
+        const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
+        const settings = settingsDoc.data() as AppSettings;
+        const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
 
-    const response = await fetch(`${GIFTBIT_BASE_URL}/regions`, {
-        headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-        next: { revalidate: 86400 } // Revalidate once a day
-    });
+        // Fetch all brands for the specified user region from the Giftbit API
+        const response = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500&region_code=${userRegion}`, {
+            headers: {
+                'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
+            },
+            next: { revalidate: 3600 } // Revalidate every hour
+        });
 
-    if (!response.ok) {
-        console.error(`Giftbit Regions API Error (${response.status}):`, await response.text());
-        throw new Error('Failed to fetch regions from Giftbit.');
+        if (!response.ok) {
+            console.error(`Giftbit Brands API Error (${response.status}):`, await response.text());
+            throw new Error('Failed to fetch brands from Giftbit.');
+        }
+        
+        const data = await response.json();
+        const allBrandsForRegion: GiftbitBrand[] = data.brands || [];
+
+        // If no brands are configured in settings (e.g. admin hasn't set any), allow all for that region.
+        if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
+            return { brands: allBrandsForRegion };
+        }
+
+        // Otherwise, filter the brands from the API based on the admin's enabled list.
+        const enabledBrands = allBrandsForRegion.filter((brand) => 
+            enabledBrandCodes.includes(brand.brand_code)
+        );
+        
+        return { brands: enabledBrands };
+    } catch (error: any) {
+        console.error("Error fetching gift configuration for user:", error.message);
+        throw new Error("Could not load gift card information.");
     }
-    const data = await response.json();
-    const allRegions: GiftbitRegion[] = (data.regions || []).map((region: any) => {
-        const code = getRegionCodeFromName(region.name);
-        return {
-            ...region,
-            code: code,
-            currency: regionCurrencyMap[code] || 'USD'
-        };
-    });
-    
-    // If no regions are configured in settings, allow all. Otherwise, filter.
-    if (!enabledRegionCodes || enabledRegionCodes.length === 0) {
-        return allRegions;
-    }
-    
-    return allRegions.filter((region: GiftbitRegion) => enabledRegionCodes.includes(region.code));
-}
-
-export async function getGiftbitBrands(regionCode: string): Promise<GiftbitBrand[]> {
-    if (!GIFTBIT_API_KEY) {
-        throw new Error('GIFTBIT_API_KEY is not configured on the server.');
-    }
-    
-     // First, get enabled brands from settings
-    const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
-    const settings = settingsDoc.data() as AppSettings;
-    const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
-
-    // Fetch all brands for the specified region
-    const response = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500&region_code=${regionCode}`, {
-        headers: {
-            'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
-        },
-        next: { revalidate: 3600 } // Revalidate every hour
-    });
-
-    if (!response.ok) {
-        console.error(`Giftbit Brands API Error (${response.status}):`, await response.text());
-        throw new Error('Failed to fetch brands from Giftbit.');
-    }
-    
-    const data = await response.json();
-    const allBrandsForRegion = data.brands || [];
-
-    // If no brands are configured in settings, allow all for that region. Otherwise, filter.
-    if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
-        return allBrandsForRegion;
-    }
-
-    return allBrandsForRegion.filter((brand: GiftbitBrand) => enabledBrandCodes.includes(brand.brand_code));
 }
 
 
@@ -187,3 +145,5 @@ export async function processGift(giftId: string) {
         await giftRef.update({ status: 'Failed' });
     }
 }
+
+    
