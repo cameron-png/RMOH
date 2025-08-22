@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getGiftConfigurationForUser, confirmPendingGift, declinePendingGift } from './actions';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
@@ -117,6 +118,14 @@ export default function GiftsPage() {
 
     return unsubscribe;
   }, [user]);
+
+  const sortedGifts = useMemo(() => {
+    return [...gifts].sort((a, b) => {
+        if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+        if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+        return (b.createdAt?.toDate()?.getTime() || 0) - (a.createdAt?.toDate()?.getTime() || 0);
+    });
+  }, [gifts]);
 
   useEffect(() => {
     const unsubscribe = fetchGiftsAndHouses();
@@ -421,10 +430,11 @@ export default function GiftsPage() {
                     <>
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-4">
-                        {gifts.map((gift) => {
+                        {sortedGifts.map((gift) => {
                             const house = openHouses.get(gift.openHouseId || '');
+                            const isPending = gift.status === 'Pending';
                             return (
-                            <Card key={gift.id}>
+                            <Card key={gift.id} className={cn(isPending && "bg-yellow-50 dark:bg-yellow-950/50 border-yellow-200 dark:border-yellow-800")}>
                                 <CardHeader>
                                     <CardTitle className="text-base">{gift.recipientName}</CardTitle>
                                     <CardDescription>{gift.recipientEmail}</CardDescription>
@@ -456,8 +466,8 @@ export default function GiftsPage() {
                                 <CardFooter className="flex gap-2">
                                      {gift.status === 'Pending' ? (
                                         <>
-                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => setGiftToDecline(gift)}><ThumbsDown/>Decline</Button>
-                                            <Button size="sm" className="flex-1" onClick={() => setGiftToConfirm(gift)}><ThumbsUp/>Confirm</Button>
+                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => setGiftToDecline(gift)}><ThumbsDown className="mr-2"/>Decline</Button>
+                                            <Button size="sm" className="flex-1" onClick={() => setGiftToConfirm(gift)}><ThumbsUp className="mr-2"/>Confirm</Button>
                                         </>
                                      ) : gift.claimUrl ? (
                                         <Button variant="outline" size="sm" asChild className="w-full">
@@ -505,10 +515,11 @@ export default function GiftsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {gifts.map((gift) => {
+                                {sortedGifts.map((gift) => {
                                  const house = openHouses.get(gift.openHouseId || '');
+                                 const isPending = gift.status === 'Pending';
                                  return (
-                                <TableRow key={gift.id}>
+                                <TableRow key={gift.id} className={cn(isPending && "bg-yellow-50 dark:bg-yellow-950/50 hover:bg-yellow-100 dark:hover:bg-yellow-950")}>
                                     <TableCell>
                                         <div>{gift.recipientName}</div>
                                         <div className="text-xs text-muted-foreground">{gift.recipientEmail}</div>
@@ -538,8 +549,8 @@ export default function GiftsPage() {
                                     <TableCell className="text-right">
                                         {gift.status === 'Pending' ? (
                                             <div className="flex justify-end gap-2">
-                                                <Button variant="ghost" size="sm" onClick={() => setGiftToDecline(gift)}><ThumbsDown/>Decline</Button>
-                                                <Button size="sm" onClick={() => setGiftToConfirm(gift)}><ThumbsUp/>Confirm</Button>
+                                                <Button variant="ghost" size="sm" onClick={() => setGiftToDecline(gift)}><ThumbsDown className="mr-2"/>Decline</Button>
+                                                <Button size="sm" onClick={() => setGiftToConfirm(gift)}><ThumbsUp className="mr-2"/>Confirm</Button>
                                             </div>
                                         ) : gift.claimUrl ? (
                                             <Button variant="ghost" size="icon" asChild>

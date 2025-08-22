@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { Users, Power, Search, ArrowUpDown, Gift } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 
 const formSchema = z.object({
@@ -294,7 +295,7 @@ export default function DashboardPage() {
                 </CardContent>
             </Link>
         </Card>
-        <Card asChild>
+        <Card asChild className={cn(pendingGiftsCount > 0 && "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/50 dark:border-yellow-800")}>
             <Link href="/user/gifts">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Pending Gifts</CardTitle>
@@ -305,7 +306,7 @@ export default function DashboardPage() {
                 </CardContent>
             </Link>
         </Card>
-        <Card asChild className={`${activeHouse ? "bg-green-50 border-green-200 dark:bg-green-950/50 dark:border-green-800" : ""}`}>
+        <Card asChild className={cn(activeHouse && "bg-green-50 border-green-200 dark:bg-green-950/50 dark:border-green-800")}>
             <Link href={activeHouse ? `/user/open-house/${activeHouse.id}` : "/user/dashboard"}>
                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Active Open House</CardTitle>
