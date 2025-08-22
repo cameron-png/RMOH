@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -6,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthLayout } from '@/components/auth-layout';
 import { LoginForm } from '@/components/login-form';
-import { Loader2 } from 'lucide-react';
+import { LoadingAnimation } from '@/components/loading-animation';
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -21,7 +20,7 @@ export default function LoginPage() {
   if (loading || user) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingAnimation />
         <p className="text-muted-foreground mt-4">Loading your session...</p>
       </div>
     );

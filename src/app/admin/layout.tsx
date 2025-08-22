@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -11,6 +10,7 @@ import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
+import { LoadingAnimation } from '@/components/loading-animation';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -25,7 +25,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   if (loading) {
     return (
         <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background">
-            <p className="text-muted-foreground">Verifying admin credentials...</p>
+            <LoadingAnimation />
+            <p className="text-muted-foreground mt-4">Verifying admin credentials...</p>
         </div>
     );
   }
