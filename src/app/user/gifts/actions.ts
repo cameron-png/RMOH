@@ -12,7 +12,7 @@ const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
 
-export async function getGiftConfigurationForUser(userRegion: string): Promise<{ brands: GiftbitBrand[] }> {
+export async function getGiftConfigurationForUser(userRegion: string): Promise<{ brands: GiftbitBrand[], regions: GiftbitRegion[] }> {
     if (!GIFTBIT_API_KEY) {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
     }
@@ -23,37 +23,67 @@ export async function getGiftConfigurationForUser(userRegion: string): Promise<{
         const settings = settingsDoc.data() as AppSettings;
         const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
 
-        // Fetch all brands for the specified user region from the Giftbit API
-        const response = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500&region_code=${userRegion}`, {
-            headers: {
-                'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
-            },
-            next: { revalidate: 3600 } // Revalidate every hour
-        });
+        // Fetch all brands and regions from the Giftbit API in parallel
+        const [brandsResponse, regionsResponse] = await Promise.all([
+             fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, { // Fetch all brands to filter later
+                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+                next: { revalidate: 3600 } // Revalidate every hour
+            }),
+            fetch(`${GIFTBIT_BASE_URL}/regions`, {
+                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+                next: { revalidate: 86400 } // Revalidate once a day
+            })
+        ]);
 
-        if (!response.ok) {
-            console.error(`Giftbit Brands API Error (${response.status}):`, await response.text());
-            throw new Error('Failed to fetch brands from Giftbit.');
+        if (!brandsResponse.ok || !regionsResponse.ok) {
+            console.error(`Giftbit API Error (Brands: ${brandsResponse.status}, Regions: ${regionsResponse.status})`);
+            throw new Error('Failed to fetch data from Giftbit.');
         }
         
-        const data = await response.json();
-        const allBrandsForRegion: GiftbitBrand[] = data.brands || [];
+        const brandsData = await brandsResponse.json();
+        const regionsData = await regionsResponse.json();
+
+        const allBrands: GiftbitBrand[] = brandsData.brands || [];
+        const allRegions: GiftbitRegion[] = regionsData.regions || [];
+        
+        const userRegionDetails = allRegions.find(r => r.code === userRegion);
+
+        // Filter brands available in the user's region
+        const brandsForRegion = allBrands.filter(brand => 
+            brand.region_codes.includes(userRegion)
+        );
 
         // If no brands are configured in settings (e.g. admin hasn't set any), allow all for that region.
         if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
-            return { brands: allBrandsForRegion };
+            return { brands: brandsForRegion, regions: allRegions };
         }
 
         // Otherwise, filter the brands from the API based on the admin's enabled list.
-        const enabledBrands = allBrandsForRegion.filter((brand) => 
+        const enabledBrands = brandsForRegion.filter((brand) => 
             enabledBrandCodes.includes(brand.brand_code)
         );
         
-        return { brands: enabledBrands };
+        return { brands: enabledBrands, regions: allRegions };
     } catch (error: any) {
         console.error("Error fetching gift configuration for user:", error.message);
         throw new Error("Could not load gift card information.");
     }
+}
+
+export async function getGiftbitRegions(): Promise<GiftbitRegion[]> {
+    if (!GIFTBIT_API_KEY) {
+        throw new Error('GIFTBIT_API_KEY is not configured on the server.');
+    }
+     const response = await fetch(`${GIFTBIT_BASE_URL}/regions`, {
+        headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+        next: { revalidate: 86400 } // Revalidate once a day
+    });
+     if (!response.ok) {
+        console.error(`Giftbit Regions API Error (${response.status}):`, await response.text());
+        throw new Error('Failed to fetch regions from Giftbit.');
+    }
+    const data = await response.json();
+    return data.regions || [];
 }
 
 
@@ -111,6 +141,14 @@ export async function processGift(giftId: string) {
             }
         }
 
+        // Fetch brand details to get the brand name
+        const brandResponse = await fetch(`${GIFTBIT_BASE_URL}/brands/${gift.brandCode}`, {
+            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` }
+        });
+        if (!brandResponse.ok) throw new Error(`Could not fetch brand details for ${gift.brandCode}`);
+        const brandData = await brandResponse.json();
+        const brandName = brandData.brand.name;
+
 
         // 1. Create the direct link order
         const orderResponse = await createDirectLink(gift);
@@ -138,6 +176,7 @@ export async function processGift(giftId: string) {
         // 4. Send email to recipient
         await sendGiftEmail({
             ...gift,
+            brandName: brandName,
             claimUrl: claimUrl,
             sender: user,
             openHouseAddress: openHouseAddress,

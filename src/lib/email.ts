@@ -29,7 +29,7 @@ interface SendGiftEmailParams {
     recipientName: string;
     recipientEmail: string;
     sender: UserProfile;
-    brandCode: string;
+    brandName: string;
     amountInCents: number;
     message?: string;
     claimUrl: string;
@@ -51,6 +51,7 @@ interface LowBalanceEmailParams {
 function generateSignatureHtml(user: UserProfile): string {
     const hasPersonalLogo = !!user.personalLogoUrl;
     const hasBrokerageLogo = !!user.brokerageLogoUrl;
+    const phone = user.phone ? `(${user.phone.substring(0,3)}) ${user.phone.substring(3,6)}-${user.phone.substring(6,10)}` : '';
 
     return `
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">
@@ -67,7 +68,7 @@ function generateSignatureHtml(user: UserProfile): string {
                 <p style="margin: 0; color: #333333;"><strong>${user.name}</strong></p>
                 ${user.title ? `<p style="margin: 0; color: #555555;">${user.title}</p>` : ''}
                 ${user.brokerageName ? `<p style="margin: 0; color: #555555;">${user.brokerageName}</p>` : ''}
-                ${user.phone ? `<p style="margin: 0; color: #555555;">${user.phone}</p>` : ''}
+                ${phone ? `<p style="margin: 0; color: #555555;">${phone}</p>` : ''}
                 ${user.email ? `<p style="margin: 0;"><a href="mailto:${user.email}" style="color: #3b82f6; text-decoration: none;">${user.email}</a></p>` : ''}
               </td>
             </tr>
@@ -101,10 +102,8 @@ function generateFooterHtml(): string {
     `;
 }
 
-function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amountInCents, claimUrl, openHouseAddress }: SendGiftEmailParams): string {
+function generateGiftEmailHtml({ recipientName, sender, message, brandName, amountInCents, claimUrl, openHouseAddress }: SendGiftEmailParams): string {
   const amountDollars = (amountInCents / 100).toFixed(2);
-  // A simple way to format brand code to brand name, this might need improvement
-  const brandName = brandCode.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
   const greetingMessage = openHouseAddress 
     ? `Thank you for visiting the open house at <strong>${openHouseAddress}</strong>! As a token of our appreciation, ${sender.name} has sent you a <strong>$${amountDollars} ${brandName} gift card</strong>.`
@@ -176,8 +175,9 @@ function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amou
 
 
 function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmailParams): string {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ratemyopenhouse.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.ratemyopenhouse.com';
     const footerHtml = generateFooterHtml();
+    const phone = lead.phone ? `(${lead.phone.substring(0,3)}) ${lead.phone.substring(3,6)}-${lead.phone.substring(6,10)}` : '';
 
     return `
     <!DOCTYPE html>
@@ -207,7 +207,7 @@ function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmail
                   <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin: 20px 0; background-color: #f9f9f9; border: 1px solid #eeeeee; border-radius: 4px;">
                      <tr><td style="padding: 10px 15px;"><strong>Name:</strong> ${lead.name}</td></tr>
                      ${lead.email ? `<tr><td style="padding: 10px 15px; border-top: 1px solid #eeeeee;"><strong>Email:</strong> ${lead.email}</td></tr>` : ''}
-                     ${lead.phone ? `<tr><td style="padding: 10px 15px; border-top: 1px solid #eeeeee;"><strong>Phone:</strong> ${lead.phone}</td></tr>` : ''}
+                     ${phone ? `<tr><td style="padding: 10px 15px; border-top: 1px solid #eeeeee;"><strong>Phone:</strong> ${phone}</td></tr>` : ''}
                   </table>
                   <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; text-align: center; margin-top: 30px;">
                     <tr>
@@ -229,7 +229,7 @@ function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmail
 }
 
 function generateLowBalanceEmailHtml({ user, currentBalanceInCents }: LowBalanceEmailParams): string {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ratemyopenhouse.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.ratemyopenhouse.com';
     const balance = (currentBalanceInCents / 100).toFixed(2);
     const footerHtml = generateFooterHtml();
 
