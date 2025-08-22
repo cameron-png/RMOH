@@ -3,7 +3,7 @@
 
 import { adminDb } from '@/lib/firebase/server';
 import { UserProfile, Lead, OpenHouse } from './lib/types';
-import { _sendNewLeadEmail } from './lib/email';
+import { _sendNewLeadEmail } from '@/lib/email';
 
 interface SendNewLeadEmailParams {
     realtorId: string;
