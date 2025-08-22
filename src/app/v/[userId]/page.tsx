@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { doc, getDoc, collection, addDoc, Timestamp, getDocs, query, where, limit, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, Lead } from '@/lib/types';
+import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, Lead, GiftbitBrand } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,11 +20,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Home, ThumbsUp, UserPlus, CheckCircle, Star, AlertCircle, Mail, Phone, Building, Contact } from 'lucide-react';
+import { Home, ThumbsUp, UserPlus, CheckCircle, Star, AlertCircle, Mail, Phone, Building, Contact, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { sendNewLeadEmail } from '@/lib/email';
+import { getGiftConfigurationForUser } from '@/app/user/gifts/actions';
 
 
 const leadSchema = z.object({
@@ -48,6 +49,7 @@ export default function VisitorFeedbackPage() {
   const [realtor, setRealtor] = useState<UserProfile | null>(null);
   const [activeHouse, setActiveHouse] = useState<OpenHouse | null>(null);
   const [formTemplate, setFormTemplate] = useState<FeedbackForm | null>(null);
+  const [giftBrand, setGiftBrand] = useState<GiftbitBrand | null>(null);
   
   const [feedbackSubmissionId, setFeedbackSubmissionId] = useState<string | null>(null);
 
@@ -92,7 +94,21 @@ export default function VisitorFeedbackPage() {
         const userDocRef = doc(db, 'users', userId);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-            setRealtor(userDocSnap.data() as UserProfile);
+            const realtorData = userDocSnap.data() as UserProfile;
+            setRealtor(realtorData);
+
+            // If gifts are enabled, fetch the specific brand details
+            if (houseData.isGiftEnabled && houseData.giftBrandCode && realtorData.region) {
+                try {
+                    const { brands } = await getGiftConfigurationForUser(realtorData.region);
+                    const brandDetails = brands.find(b => b.brand_code === houseData.giftBrandCode);
+                    if (brandDetails) {
+                        setGiftBrand(brandDetails);
+                    }
+                } catch(e) {
+                    console.warn("Could not fetch gift brand details for visitor page", e);
+                }
+            }
         }
         
         if (houseData.feedbackFormId) {
@@ -397,6 +413,22 @@ export default function VisitorFeedbackPage() {
     link.click();
     document.body.removeChild(link);
   };
+  
+  const GiftBanner = () => {
+    if (!activeHouse?.isGiftEnabled || !giftBrand) return null;
+    
+    return (
+        <div className="bg-yellow-100/60 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800/60 rounded-lg p-3 flex items-center gap-4">
+            <div className="w-12 h-12 relative bg-white rounded-md border flex items-center justify-center flex-shrink-0">
+                <Image src={giftBrand.image_url} alt={giftBrand.name} fill className="object-contain p-1" data-ai-hint="company logo"/>
+            </div>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                Provide your feedback and receive a small gift as a thank you!
+            </p>
+        </div>
+    )
+  }
+
 
   const renderContent = () => {
     if (loading) {
@@ -479,6 +511,9 @@ export default function VisitorFeedbackPage() {
               <Button size="lg" className="w-full mt-6" onClick={handleGetStarted} disabled={!formTemplate}>
                 {!formTemplate ? "Feedback form not available" : "Get Started"}
               </Button>
+               <div className="mt-6">
+                <GiftBanner />
+               </div>
             </CardContent>
             <CardFooter className="flex-col gap-4 p-6 bg-muted/50 border-t">
                 {realtor && (
@@ -555,6 +590,7 @@ export default function VisitorFeedbackPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <GiftBanner />
                     <FormField control={leadForm.control} name="name" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Full Name</FormLabel>
