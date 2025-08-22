@@ -198,14 +198,12 @@ export default function OpenHouseDetailPage() {
   }, [openHouse, addressForm]);
 
   useEffect(() => {
-    if (user?.region) {
       setLoadingBrands(true);
-      getGiftConfigurationForUser(user.region)
+      getGiftConfigurationForUser()
         .then(({ brands }) => setBrands(brands))
         .catch(() => toast({ variant: 'destructive', title: 'Error', description: 'Could not load gift brands.' }))
         .finally(() => setLoadingBrands(false));
-    }
-  }, [user?.region, toast]);
+  }, [toast]);
 
   useEffect(() => {
     if (openHouse && brands.length > 0) {
