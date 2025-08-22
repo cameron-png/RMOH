@@ -103,6 +103,7 @@ export interface Gift {
     recipientEmail: string;
     brandCode: string;
     amountInCents: number;
+    message?: string;
     type: 'Manual' | 'Auto';
     status: 'Pending' | 'Sent' | 'Failed' | 'Cancelled';
     claimUrl: string | null;

@@ -25,12 +25,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getGiftConfigurationForUser, confirmPendingGift, declinePendingGift } from './actions';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
   recipientEmail: z.string().email("Please enter a valid email address."),
   brand: z.string().min(1, "Please select a brand."),
   amount: z.string().min(1, "Please enter an amount."),
+  message: z.string().optional(),
 });
 
 
@@ -63,6 +65,7 @@ export default function GiftsPage() {
       recipientEmail: '',
       brand: '',
       amount: '',
+      message: '',
     },
   });
   
@@ -214,6 +217,7 @@ export default function GiftsPage() {
             recipientEmail: giftDataToCreate.recipientEmail,
             brandCode: giftDataToCreate.brand,
             amountInCents: Math.round(parseFloat(giftDataToCreate.amount) * 100),
+            message: giftDataToCreate.message,
             type: 'Manual',
             status: 'Pending' as const,
             claimUrl: null,
@@ -319,68 +323,85 @@ export default function GiftsPage() {
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="recipientName"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Recipient Name</FormLabel>
-                                    <FormControl><Input placeholder="Jane Doe" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="recipientEmail"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Recipient Email</FormLabel>
-                                    <FormControl><Input placeholder="jane.doe@example.com" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="brand"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Brand</FormLabel>
-                                    <Select onValueChange={handleBrandChange} disabled={loadingBrands}>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="recipientName"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Recipient Name</FormLabel>
+                                        <FormControl><Input placeholder="Jane Doe" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="recipientEmail"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Recipient Email</FormLabel>
+                                        <FormControl><Input placeholder="jane.doe@example.com" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="brand"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Brand</FormLabel>
+                                        <Select onValueChange={handleBrandChange} disabled={loadingBrands} value={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {loadingBrands ? (
+                                                    <div className="flex items-center justify-center p-4">
+                                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                    </div>
+                                                ) : (
+                                                    brands.map((brand) => (
+                                                        <SelectItem key={brand.brand_code} value={brand.brand_code}>
+                                                        {brand.name}
+                                                        </SelectItem>
+                                                    ))
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="amount"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Amount ($)</FormLabel>
                                         <FormControl>
-                                            <SelectTrigger>
-                                            <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
-                                            </SelectTrigger>
+                                            <Input type="number" placeholder="e.g., 25.00" {...field} disabled={!selectedBrand} />
                                         </FormControl>
-                                        <SelectContent>
-                                            {loadingBrands ? (
-                                                <div className="flex items-center justify-center p-4">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                </div>
-                                            ) : (
-                                                brands.map((brand) => (
-                                                    <SelectItem key={brand.brand_code} value={brand.brand_code}>
-                                                      {brand.name}
-                                                    </SelectItem>
-                                                ))
-                                            )}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
+                                        <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                             </div>
                              <FormField
                                 control={form.control}
-                                name="amount"
+                                name="message"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Amount ($)</FormLabel>
+                                    <FormLabel>Message (Optional)</FormLabel>
                                     <FormControl>
-                                        <Input type="number" placeholder="e.g., 25.00" {...field} disabled={!selectedBrand} />
+                                        <Textarea placeholder="e.g., Thank you for visiting!" {...field} />
                                     </FormControl>
-                                    <FormDescription>{getAmountDescription()}</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                                 )}

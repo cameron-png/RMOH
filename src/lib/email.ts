@@ -78,8 +78,12 @@ function generateSignatureHtml(user: UserProfile): string {
         <td style="padding: 20px 0 0 0;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">
             <tr>
-              ${hasPersonalLogo ? `<td align="center" style="padding: 0 10px 0 0;"><img src="${user.personalLogoUrl}" alt="Personal Logo" style="display: block; max-width: 120px; max-height: 60px; height: auto;"/></td>` : ''}
-              ${hasBrokerageLogo ? `<td align="center" style="padding: 0 0 0 10px;"><img src="${user.brokerageLogoUrl}" alt="Brokerage Logo" style="display: block; max-width: 120px; max-height: 60px; height: auto;"/></td>` : ''}
+              <td align="center" style="padding: 0 5px;">
+                 ${hasPersonalLogo ? `<img src="${user.personalLogoUrl}" alt="Personal Logo" style="display: inline-block; vertical-align: middle; max-width: 120px; max-height: 60px; height: auto;"/>` : ''}
+              </td>
+              <td align="center" style="padding: 0 5px;">
+                 ${hasBrokerageLogo ? `<img src="${user.brokerageLogoUrl}" alt="Brokerage Logo" style="display: inline-block; vertical-align: middle; max-width: 120px; max-height: 60px; height: auto;"/>` : ''}
+              </td>
             </tr>
           </table>
         </td>
@@ -154,7 +158,7 @@ function generateGiftEmailHtml({ recipientName, sender, message, brandName, amou
                 <td align="center" style="padding: 0 30px 30px 30px;">
                   <table border="0" cellpadding="0" cellspacing="0" width="80%" style="border-collapse: collapse;">
                     <tr>
-                      <td>
+                      <td align="center">
                         ${signatureHtml}
                       </td>
                     </tr>
@@ -173,7 +177,7 @@ function generateGiftEmailHtml({ recipientName, sender, message, brandName, amou
 
 
 function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmailParams): string {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.ratemyopenhouse.com';
+    const siteUrl = 'https://app.ratemyopenhouse.com';
     const footerHtml = generateFooterHtml();
     const phone = lead.phone ? `(${lead.phone.substring(0,3)}) ${lead.phone.substring(3,6)}-${lead.phone.substring(6,10)}` : '';
 
@@ -227,7 +231,7 @@ function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmail
 }
 
 function generateLowBalanceEmailHtml({ user, currentBalanceInCents }: LowBalanceEmailParams): string {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.ratemyopenhouse.com';
+    const siteUrl = 'https://app.ratemyopenhouse.com';
     const balance = (currentBalanceInCents / 100).toFixed(2);
     const footerHtml = generateFooterHtml();
 
