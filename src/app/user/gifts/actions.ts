@@ -157,18 +157,26 @@ export async function processGift(giftId: string) {
 
         // 2. Poll for the link to become available
         let linkData;
-        for (let i = 0; i < 5; i++) { // Poll up to 5 times (10 seconds total)
-            await sleep(2000); // Wait 2 seconds between polls
-            linkData = await getLink(gift.id);
-            if (linkData?.links?.[0]?.claim_link) {
-                break;
+        const fiveMinutesInSeconds = 5 * 60;
+        const pollIntervalSeconds = 10;
+        const maxRetries = fiveMinutesInSeconds / pollIntervalSeconds;
+
+        for (let i = 0; i < maxRetries; i++) {
+            await sleep(pollIntervalSeconds * 1000); // Wait for the specified interval
+            try {
+                linkData = await getLink(gift.id);
+                if (linkData?.links?.[0]?.claim_link) {
+                    break;
+                }
+            } catch (error) {
+                console.log(`Polling for gift ${gift.id}: link not ready yet. Attempt ${i + 1}/${maxRetries}`);
             }
         }
         
         const claimUrl = linkData?.links?.[0]?.claim_link;
 
         if (!claimUrl) {
-            throw new Error(`Link generation timed out for gift ${gift.id}`);
+            throw new Error(`Link generation timed out for gift ${gift.id} after 5 minutes.`);
         }
         
         // 3. Update gift in Firestore
