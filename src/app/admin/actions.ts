@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { UserProfile, OpenHouse, FeedbackForm, AppSettings } from '@/lib/types';
+import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings } from '@/lib/types';
 
 
 function serializeTimestamps(obj: any): any {
@@ -87,5 +87,83 @@ export async function getAdminDashboardData() {
     } catch (error: any) {
         console.error("Error in getAdminDashboardData:", error);
         throw new Error("Failed to fetch admin dashboard data: " + error.message);
+    }
+}
+
+
+const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
+const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
+
+const regionCurrencyMap: { [key: string]: string } = {
+    'ca': 'CAD',
+    'us': 'USD',
+    'au': 'AUD',
+    'global': 'USD'
+};
+
+function getRegionCodeFromName(name: string): string {
+    if (name === "USA") return "us";
+    if (name === "Canada") return "ca";
+    if (name === "Australia") return "au";
+    return name.toLowerCase();
+}
+
+
+export async function getAvailableGiftbitRegionsAndBrands(): Promise<{ regions: GiftbitRegion[], brands: GiftbitBrand[] }> {
+    if (!GIFTBIT_API_KEY) {
+        throw new Error('GIFTBIT_API_KEY is not configured on the server.');
+    }
+
+    try {
+        const [regionsResponse, brandsResponse] = await Promise.all([
+            fetch(`${GIFTBIT_BASE_URL}/regions`, {
+                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+                next: { revalidate: 86400 } // Revalidate once a day
+            }),
+            fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, { // Fetch all brands
+                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+                next: { revalidate: 3600 } // Revalidate every hour
+            })
+        ]);
+
+        if (!regionsResponse.ok || !brandsResponse.ok) {
+            console.error('Giftbit API Error:', {
+                regionsStatus: regionsResponse.status,
+                brandsStatus: brandsResponse.status,
+            });
+            throw new Error('Failed to fetch data from Giftbit.');
+        }
+
+        const regionsData = await regionsResponse.json();
+        const brandsData = await brandsResponse.json();
+
+        // Process regions to add the code and currency
+        const processedRegions = (regionsData.regions || []).map((region: any) => {
+            const code = getRegionCodeFromName(region.name);
+            return {
+                ...region,
+                code: code,
+                currency: regionCurrencyMap[code] || 'USD'
+            };
+        });
+
+        return {
+            regions: processedRegions,
+            brands: brandsData.brands || [],
+        };
+    } catch (error: any) {
+        console.error('Error fetching from Giftbit:', error.message);
+        throw new Error('Could not retrieve Giftbit data.');
+    }
+}
+
+export async function saveGiftbitSettings(settings: GiftbitSettings): Promise<{ success: boolean; message?: string }> {
+    try {
+        const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
+        await settingsDocRef.set({ giftbit: settings }, { merge: true });
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving Giftbit settings:", error);
+        return { success: false, message: 'Failed to save settings.' };
     }
 }

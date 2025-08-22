@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings } from '@/lib/types';
+import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -27,8 +27,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAdminDashboardData } from './actions';
+import { getAdminDashboardData, getAvailableGiftbitRegionsAndBrands, saveGiftbitSettings } from './actions';
 import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const optionSchema = z.object({
   id: z.string(),
@@ -63,6 +65,14 @@ export default function AdminPage() {
   
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<string | null>(null);
+  
+  const [allRegions, setAllRegions] = useState<GiftbitRegion[]>([]);
+  const [allBrands, setAllBrands] = useState<GiftbitBrand[]>([]);
+  const [loadingGiftbitData, setLoadingGiftbitData] = useState(true);
+
+  const [enabledRegionCodes, setEnabledRegionCodes] = useState<string[]>([]);
+  const [enabledBrandCodes, setEnabledBrandCodes] = useState<string[]>([]);
+  const [isSavingGiftbit, setIsSavingGiftbit] = useState(false);
 
   const getInitials = (name?: string | null) => {
     if (!name) return "??";
@@ -75,12 +85,19 @@ export default function AdminPage() {
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
+    setLoadingGiftbitData(true);
     try {
       const { users, openHouses, forms, settings } = await getAdminDashboardData();
       setUsers(users);
       setOpenHouses(openHouses);
       setGlobalForms(forms);
       setAppSettings(settings);
+      setEnabledRegionCodes(settings.giftbit?.enabledRegionCodes || []);
+      setEnabledBrandCodes(settings.giftbit?.enabledBrandCodes || []);
+      
+      const { regions, brands } = await getAvailableGiftbitRegionsAndBrands();
+      setAllRegions(regions);
+      setAllBrands(brands);
 
     } catch (error) {
       console.error("Error fetching admin data:", error);
@@ -91,6 +108,7 @@ export default function AdminPage() {
       });
     }
     setLoading(false);
+    setLoadingGiftbitData(false);
   }, [toast]);
 
   useEffect(() => {
@@ -213,6 +231,30 @@ export default function AdminPage() {
     }
   };
 
+  const handleRegionToggle = (regionCode: string, checked: boolean) => {
+    setEnabledRegionCodes(prev => 
+        checked ? [...prev, regionCode] : prev.filter(code => code !== regionCode)
+    );
+  };
+
+  const handleBrandToggle = (brandCode: string, checked: boolean) => {
+    setEnabledBrandCodes(prev =>
+        checked ? [...prev, brandCode] : prev.filter(code => code !== brandCode)
+    );
+  };
+  
+  const handleSaveGiftbitSettings = async () => {
+    setIsSavingGiftbit(true);
+    const settings: GiftbitSettings = { enabledRegionCodes, enabledBrandCodes };
+    const result = await saveGiftbitSettings(settings);
+    if (result.success) {
+        toast({ title: "Giftbit settings saved successfully!" });
+    } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
+    }
+    setIsSavingGiftbit(false);
+  };
+
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
       user.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -250,10 +292,11 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 h-auto md:h-10">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 h-auto md:h-10">
           <TabsTrigger value="users">All Users</TabsTrigger>
           <TabsTrigger value="openHouses">Open Houses</TabsTrigger>
           <TabsTrigger value="formLibrary">Form Library</TabsTrigger>
+          <TabsTrigger value="giftBrands">Gift Brands</TabsTrigger>
         </TabsList>
 
         {/* Users Tab */}
@@ -495,6 +538,86 @@ export default function AdminPage() {
                     </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+         {/* Gift Brands Tab */}
+        <TabsContent value="giftBrands">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Gift Brands</CardTitle>
+                  <CardDescription>Configure which gift card regions and brands are available to users.</CardDescription>
+                </div>
+                 <Button onClick={handleSaveGiftbitSettings} disabled={isSavingGiftbit}>
+                    {isSavingGiftbit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+               {loadingGiftbitData ? (
+                 <div className="flex justify-center items-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                 </div>
+               ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                    {/* Regions */}
+                    <div className="md:col-span-1">
+                        <h3 className="text-lg font-medium mb-4">Enabled Regions</h3>
+                        <div className="space-y-3">
+                            {allRegions.map(region => (
+                                <div key={region.code} className="flex items-center space-x-2">
+                                    <Switch
+                                        id={`region-${region.code}`}
+                                        checked={enabledRegionCodes.includes(region.code)}
+                                        onCheckedChange={(checked) => handleRegionToggle(region.code, checked)}
+                                    />
+                                    <label htmlFor={`region-${region.code}`} className="text-sm font-medium leading-none">
+                                       {region.name} ({region.currency})
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {/* Brands */}
+                    <div className="md:col-span-2">
+                        <h3 className="text-lg font-medium mb-4">Enabled Brands</h3>
+                        <ScrollArea className="h-[500px] border rounded-lg p-4">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {allBrands
+                                    .filter(brand => brand.region_codes.some(code => enabledRegionCodes.includes(code)))
+                                    .sort((a,b) => a.name.localeCompare(b.name))
+                                    .map(brand => (
+                                    <div key={brand.brand_code} className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50">
+                                        <Switch
+                                            id={`brand-${brand.brand_code}`}
+                                            checked={enabledBrandCodes.includes(brand.brand_code)}
+                                            onCheckedChange={(checked) => handleBrandToggle(brand.brand_code, checked)}
+                                            className="mt-1"
+                                        />
+                                        <label htmlFor={`brand-${brand.brand_code}`} className="flex flex-col gap-2 cursor-pointer">
+                                            <div className="w-20 h-10 relative bg-white rounded border flex items-center justify-center">
+                                                <Image src={brand.image_url} alt={brand.name} fill className="object-contain p-1" data-ai-hint="company logo"/>
+                                            </div>
+                                            <span className="text-sm font-medium leading-none">
+                                                {brand.name}
+                                            </span>
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                            {enabledRegionCodes.length === 0 && (
+                                <div className="text-center py-10 text-muted-foreground">
+                                    <p>Select a region on the left to see available brands.</p>
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </div>
+                </div>
+               )}
             </CardContent>
           </Card>
         </TabsContent>

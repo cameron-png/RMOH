@@ -10,13 +10,15 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { FeedbackForm } from '@/lib/types';
+import { FeedbackForm, GiftbitRegion } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
+import { getGiftbitRegions } from '@/app/user/gifts/actions';
 
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -26,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Copy, RefreshCw, KeyRound, Edit, Loader2, ImageIcon } from 'lucide-react';
+import { Copy, RefreshCw, KeyRound, Edit, Loader2, ImageIcon, Globe } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -39,6 +41,7 @@ const profileFormSchema = z.object({
   licenseNumber: z.string().optional(),
   brokerageName: z.string().optional(),
   defaultFormId: z.string().optional(),
+  region: z.string().optional(),
 });
 
 export default function ProfilePage() {
@@ -46,6 +49,8 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [formattedPhone, setFormattedPhone] = useState("");
   const [availableForms, setAvailableForms] = useState<FeedbackForm[]>([]);
+  const [regions, setRegions] = useState<GiftbitRegion[]>([]);
+  const [loadingRegions, setLoadingRegions] = useState(true);
   const [apiKey, setApiKey] = useState<string | null>(null);
   
   const personalLogoInputRef = useRef<HTMLInputElement>(null);
@@ -69,24 +74,46 @@ export default function ProfilePage() {
       licenseNumber: '',
       brokerageName: '',
       defaultFormId: '',
+      region: '',
     },
   });
   
   const fetchInitialData = useCallback(async () => {
     if (!user) return;
-    // Fetch forms
+    
+    setLoadingRegions(true);
+    // Fetch forms and regions
     try {
         const { collection, query, where, getDocs } = await import('firebase/firestore');
         const globalQuery = query(collection(db, 'feedbackForms'), where('type', '==', 'global'));
-        const customQuery = query(collection(db, 'feedbackForms'), where('type', '==', 'custom'), where('userId', '==', user.uid));
-        const [globalSnapshot, customSnapshot] = await Promise.all([getDocs(globalQuery), getDocs(customQuery)]);
+        const customQuery = query(
+          collection(db, 'feedbackForms'),
+          where('type', '==', 'custom'),
+          where('userId', '==', user.uid)
+        );
+        
+        const [globalSnapshot, customSnapshot, fetchedRegions] = await Promise.all([
+            getDocs(globalQuery), 
+            getDocs(customQuery),
+            getGiftbitRegions()
+        ]);
+        
         const allForms = [
-        ...globalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackForm)),
-        ...customSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackForm)),
+            ...globalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackForm)),
+            ...customSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackForm)),
         ];
         setAvailableForms(allForms);
+        setRegions(fetchedRegions);
+
     } catch (e) {
-        console.error("Failed to fetch forms: ", e);
+        console.error("Failed to fetch initial data: ", e);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not load required data. Please refresh.",
+        });
+    } finally {
+        setLoadingRegions(false);
     }
 
 
@@ -98,6 +125,7 @@ export default function ProfilePage() {
       licenseNumber: user.licenseNumber || '',
       brokerageName: user.brokerageName || '',
       defaultFormId: user.defaultFormId || '',
+      region: user.region || '',
     });
     setFormattedPhone(formatPhoneNumber(user.phone || ""));
     setNewPhotoURL(user.photoURL || null);
@@ -116,7 +144,7 @@ export default function ProfilePage() {
         await refreshUserData();
     }
 
-  }, [user, form, refreshUserData]);
+  }, [user, form, refreshUserData, toast]);
 
   useEffect(() => {
     if (user) {
@@ -187,6 +215,7 @@ export default function ProfilePage() {
         licenseNumber: values.licenseNumber,
         brokerageName: values.brokerageName,
         defaultFormId: values.defaultFormId,
+        region: values.region,
         photoURL: newPhotoURL,
         personalLogoUrl: newPersonalLogoUrl,
         brokerageLogoUrl: newBrokerageLogoUrl,
@@ -355,6 +384,9 @@ export default function ProfilePage() {
       </FormItem>
   );
 
+  const uniqueRegions = Array.from(new Map(regions.map(item => [item.code, item])).values());
+
+
   return (
     <div className="w-full mx-auto space-y-8">
       <div>
@@ -522,35 +554,89 @@ export default function ProfilePage() {
           
           <Card className="mt-8">
             <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>
-                    Customize your experience.
-                </CardDescription>
+              <CardTitle>Feedback Preferences</CardTitle>
+              <CardDescription>
+                Customize your default feedback form for new open houses.
+              </CardDescription>
             </CardHeader>
-             <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="defaultFormId"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Default Feedback Form</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Select a default form..." />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {availableForms.map(form => (
-                                    <SelectItem key={form.id} value={form.id}>{form.title} {form.type === 'global' && '(Library)'}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-             </CardContent>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="defaultFormId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Feedback Form</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a default form..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableForms.map((form) => (
+                          <SelectItem key={form.id} value={form.id}>
+                            {form.title}{' '}
+                            {form.type === 'global' && '(Library)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      This form will be automatically assigned to new open houses.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Gift Preferences</CardTitle>
+              <CardDescription>
+                Select your region to see relevant gift card brands.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="region"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gift Card Region</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={loadingRegions}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              loadingRegions
+                                ? 'Loading regions...'
+                                : 'Select a region'
+                            }
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {uniqueRegions.map(region => (
+                          <SelectItem key={region.code} value={region.code}>
+                            {region.name} ({region.currency})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      This sets the available brands and currency for sending gifts.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
           </Card>
 
            <div className="flex justify-end mt-8">

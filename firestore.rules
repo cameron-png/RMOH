@@ -4,62 +4,58 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is the owner of a document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    // Helper function to check if a user is an administrator of the app
+    function isAppAdmin(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.isAdmin == true;
     }
 
-    // Default deny all reads and writes
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Users can read/write their own profile
+    // Users can read/write their own profile, admins can read/write any profile
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
-    }
-    
-    // Settings can be read by any authenticated user
-    match /settings/appDefaults {
-        allow get: if request.auth != null;
-    }
-    
-    // Admins can write to settings
-    match /settings/appDefaults {
-        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow read, write: if request.auth.uid == userId || isAppAdmin(request.auth.uid);
     }
 
-    // Open Houses can be read/written by their owner
+    // Open Houses can be read/written by their owner, or any admin
     match /openHouses/{houseId} {
-        allow read, write: if isOwner(resource.data.userId);
+        allow read, write: if request.auth.uid == resource.data.userId || isAppAdmin(request.auth.uid);
     }
     
-    // Leads can be read/written by their owner
-    // Anyone can create a lead (from the public visitor page)
+    // Leads can be read/written by their owner, or any admin
     match /leads/{leadId} {
-        allow create: if true;
-        allow read, update, delete: if isOwner(resource.data.userId);
+        allow read, write: if request.auth.uid == resource.data.userId || isAppAdmin(request.auth.uid);
     }
     
-    // Feedback submissions can be read/written by their owner
-    // Anyone can create a submission (from the public visitor page)
+    // Feedback submissions can be read/written by their owner, or any admin
     match /feedbackSubmissions/{submissionId} {
-        allow create: if true;
-        allow read, update, delete: if isOwner(resource.data.userId);
-    }
-    
-    // Feedback forms can be read by any authenticated user
-    // Custom forms can be created/written by their owner
-    match /feedbackForms/{formId} {
-        allow get: if request.auth != null;
-        allow list: if request.auth != null; // Allow listing for all authenticated users
-        allow create, update, delete: if isOwner(request.resource.data.userId);
+        allow read, write: if request.auth.uid == resource.data.userId || isAppAdmin(request.auth.uid);
     }
 
-    // Gifts can be read/written by their owner
-    match /gifts/{giftId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read, update, delete: if isOwner(resource.data.userId);
+    // Feedback Forms:
+    // Global forms can be read by anyone, but only written by admins
+    // Custom forms can be read/written by their owner or any admin
+    match /feedbackForms/{formId} {
+        allow read: if request.auth != null;
+        allow write: if (resource.data.type == 'custom' && request.auth.uid == resource.data.userId) || isAppAdmin(request.auth.uid);
     }
+    
+    // Gifts can be read/written by their owner, or any admin
+    match /gifts/{giftId} {
+        allow read, write: if request.auth.uid == resource.data.userId || isAppAdmin(request.auth.uid);
+    }
+    
+    // Settings can only be read/written by admins
+    match /settings/{settingId} {
+        allow read, write: if isAppAdmin(request.auth.uid);
+    }
+
+    // Allow visitors to submit feedback without being authenticated
+    match /feedbackSubmissions/{submissionId} {
+      allow create: if request.auth == null;
+    }
+    
+     // Allow visitors to be created as leads without being authenticated
+    match /leads/{leadId} {
+      allow create: if request.auth == null;
+    }
+
   }
 }

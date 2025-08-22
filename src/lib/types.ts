@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Address {
@@ -49,6 +48,7 @@ export interface UserProfile {
   apiKey?: string;
   personalLogoUrl?: string;
   brokerageLogoUrl?: string;
+  region?: string;
 }
 
 export type User = import("firebase/auth").User & UserProfile;
@@ -103,6 +103,31 @@ export interface Gift {
     createdAt: Timestamp;
 }
 
+export interface GiftbitSettings {
+    enabledRegionCodes?: string[];
+    enabledBrandCodes?: string[];
+}
+
+
 export interface AppSettings {
     defaultGlobalFormId?: string;
+    giftbit?: GiftbitSettings;
+}
+
+export interface GiftbitBrand {
+    brand_code: string;
+    name: string;
+    denominations_in_cents?: number[];
+    min_price_in_cents?: number;
+    max_price_in_cents?: number;
+    region_codes: string[]; // Although the API filters by one, the object itself tells us all it's available in
+    image_url: string;
+}
+
+export interface GiftbitRegion {
+    id: number;
+    code: string; // The text code, e.g. "ca", "us", "au", "global"
+    name: string;
+    currency: string;
+    image_url: string;
 }

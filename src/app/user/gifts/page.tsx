@@ -5,32 +5,24 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Gift } from '@/lib/types';
+import { Gift, GiftbitBrand } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Gift as GiftIcon, PlusCircle, Loader2 } from 'lucide-react';
+import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { processGift, getGiftbitBrands } from './actions';
-
-
-interface GiftbitBrand {
-    code: string;
-    name: string;
-    denominations_in_cents?: number[];
-    min_price_in_cents?: number;
-    max_price_in_cents?: number;
-}
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
@@ -62,9 +54,8 @@ export default function GiftsPage() {
     },
   });
   
-  const handleBrandChange = (brandIdentifier: string) => {
-    const brandCode = brandIdentifier.split('-')[0];
-    const brand = brands.find(b => b.code === brandCode);
+  const handleBrandChange = (brandCode: string) => {
+    const brand = brands.find(b => b.brand_code === brandCode);
     setSelectedBrand(brand || null);
     form.setValue('brand', brandCode);
     form.setValue('amount', ''); // Reset amount when brand changes
@@ -115,23 +106,27 @@ export default function GiftsPage() {
 
   // Fetch brands when the page loads, not just when dialog opens
   useEffect(() => {
-    const loadBrands = async () => {
-        setLoadingBrands(true);
-        try {
-            const fetchedBrands = await getGiftbitBrands();
-            setBrands(fetchedBrands);
-        } catch (error) {
-             toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not load available gift brands.',
-            });
-        } finally {
-            setLoadingBrands(false);
-        }
-    };
-    loadBrands();
-  }, [toast]);
+    async function loadBrands() {
+      if (!user?.region) return;
+
+      setLoadingBrands(true);
+      try {
+        const fetchedBrands = await getGiftbitBrands(user.region);
+        setBrands(fetchedBrands);
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not load available gift brands.',
+        });
+      } finally {
+        setLoadingBrands(false);
+      }
+    }
+    if(user){
+        loadBrands();
+    }
+  }, [toast, user]);
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link).then(() => {
@@ -217,6 +212,32 @@ export default function GiftsPage() {
         });
     }
   }
+  
+  if (!user?.region) {
+    return (
+        <div className="w-full mx-auto space-y-8">
+            <Card className="mt-8">
+                <CardHeader>
+                    <CardTitle>Region Not Set</CardTitle>
+                    <CardDescription>
+                        Please set your region in your profile to use the gift-giving features.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p>Your region determines which gift card brands and currencies are available to you.</p>
+                </CardContent>
+                <CardFooter>
+                    <Button asChild>
+                        <Link href="/user/profile">
+                            <Settings className="mr-2" />
+                            Go to Profile Settings
+                        </Link>
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+    )
+  }
 
 
   return (
@@ -290,14 +311,11 @@ export default function GiftsPage() {
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                 </div>
                                             ) : (
-                                                brands.map((brand, index) => {
-                                                  const uniqueValue = `${brand.code}-${index}`;
-                                                  return (
-                                                    <SelectItem key={uniqueValue} value={uniqueValue}>
+                                                brands.map((brand) => (
+                                                    <SelectItem key={brand.brand_code} value={brand.brand_code}>
                                                       {brand.name}
                                                     </SelectItem>
-                                                  );
-                                                })
+                                                ))
                                             )}
                                         </SelectContent>
                                     </Select>
@@ -360,7 +378,7 @@ export default function GiftsPage() {
                             <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
                              <TableCell>
                                 {gift.brandCode ? (
-                                    <span>{brands.find(b => b.code === gift.brandCode)?.name || gift.brandCode}</span>
+                                    <span>{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
                                 ) : (
                                     <span>-</span>
                                 )}
