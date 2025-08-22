@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { FeedbackForm, GiftbitRegion } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { getGiftbitRegions } from '@/app/user/gifts/actions';
+import { getGiftConfigurationForUser } from '@/app/user/gifts/actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Copy, RefreshCw, KeyRound, Edit, Loader2, ImageIcon, Globe } from 'lucide-react';
+import { Copy, RefreshCw, KeyRound, Edit, Loader2, ImageIcon, Globe, User } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -79,7 +79,7 @@ export default function ProfilePage() {
   });
   
   const fetchInitialData = useCallback(async () => {
-    if (!user) return;
+    if (!user?.region) return;
     
     setLoadingRegions(true);
     // Fetch forms and regions
@@ -92,10 +92,10 @@ export default function ProfilePage() {
           where('userId', '==', user.uid)
         );
         
-        const [globalSnapshot, customSnapshot, fetchedRegions] = await Promise.all([
+        const [globalSnapshot, customSnapshot, { brands: fetchedBrands, regions: fetchedRegions }] = await Promise.all([
             getDocs(globalQuery), 
             getDocs(customQuery),
-            getGiftbitRegions()
+            getGiftConfigurationForUser(user.region)
         ]);
         
         const allForms = [
@@ -390,7 +390,7 @@ export default function ProfilePage() {
   return (
     <div className="w-full mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight font-headline">My Profile</h1>
+        <h1 className="text-3xl font-bold tracking-tight font-headline">Profile & Settings</h1>
         <p className="text-muted-foreground">
           Manage your personal and professional information.
         </p>

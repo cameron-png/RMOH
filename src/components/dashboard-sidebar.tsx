@@ -143,7 +143,7 @@ export function DashboardSidebar() {
             <DropdownMenuItem asChild>
                 <Link href="/user/profile" onClick={handleLinkClick}>
                     <Settings className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                    <span>Profile & Settings</span>
                 </Link>
             </DropdownMenuItem>
              <DropdownMenuItem asChild>
