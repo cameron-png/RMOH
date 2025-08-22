@@ -19,7 +19,7 @@ import {
   updateProfile,
   Auth,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase/client';
 import { useRouter } from "next/navigation";
 import { UserProfile } from "@/lib/types";
@@ -66,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               name: firebaseUser.displayName || 'New User',
               phone: '',
               availableBalance: 10000, // Default $100 for new users
+              createdAt: Timestamp.now(),
+              lastLoginAt: Timestamp.now(),
             };
             await setDoc(userDocRef, newUserProfile, { merge: true });
             setAvailableBalance(newUserProfile.availableBalance);
@@ -112,6 +114,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchUserAndCounts]);
 
+  const signIn = async (authInstance: Auth, email: string, pass: string) => {
+    const userCredential = await signInWithEmailAndPassword(authInstance, email, pass);
+    const userDocRef = doc(db, 'users', userCredential.user.uid);
+    await updateDoc(userDocRef, {
+        lastLoginAt: Timestamp.now(),
+    });
+    return userCredential;
+  }
+
   const signOut = async () => {
     await firebaseSignOut(auth);
     router.push('/');
@@ -123,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     availableBalance,
     refreshUserData,
-    signIn: (auth: Auth, email: string, p:string) => signInWithEmailAndPassword(auth, email, p),
+    signIn,
     signUp: (auth: Auth, email:string, p:string) => createUserWithEmailAndPassword(auth, email, p),
     signOut,
     sendPasswordResetEmail,

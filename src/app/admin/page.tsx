@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -293,6 +293,12 @@ export default function AdminPage() {
         currency: 'USD',
     }).format(balanceInCents / 100);
   };
+  
+  const formatDate = (timestamp?: Timestamp | string) => {
+      if (!timestamp) return 'N/A';
+      const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
+      return format(date, 'MMM d, yyyy');
+  };
     
   return (
     <>
@@ -357,6 +363,14 @@ export default function AdminPage() {
                                    <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="w-4 h-4"/> Balance:</span>
                                    <span className="font-medium">{formatBalance(user.availableBalance)}</span>
                                </div>
+                               <div className="flex justify-between">
+                                   <span className="text-muted-foreground flex items-center gap-1"><Calendar className="w-4 h-4"/> User Since:</span>
+                                   <span className="font-medium">{formatDate(user.createdAt)}</span>
+                               </div>
+                                <div className="flex justify-between">
+                                   <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-4 h-4"/> Last Activity:</span>
+                                   <span className="font-medium">{formatDate(user.lastLoginAt)}</span>
+                               </div>
                             </CardContent>
                         </Card>
                     )) : (
@@ -375,6 +389,8 @@ export default function AdminPage() {
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Balance</TableHead>
+                        <TableHead>User Since</TableHead>
+                        <TableHead>Last Activity</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -402,10 +418,16 @@ export default function AdminPage() {
                            <TableCell>
                                 {formatBalance(user.availableBalance)}
                            </TableCell>
+                           <TableCell>
+                                {formatDate(user.createdAt)}
+                           </TableCell>
+                           <TableCell>
+                                {formatDate(user.lastLoginAt)}
+                           </TableCell>
                         </TableRow>
                       )) : (
                         <TableRow>
-                          <TableCell colSpan={4} className="h-24 text-center">
+                          <TableCell colSpan={6} className="h-24 text-center">
                             No users found.
                           </TableCell>
                         </TableRow>

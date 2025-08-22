@@ -50,6 +50,8 @@ export interface UserProfile {
   personalLogoUrl?: string;
   brokerageLogoUrl?: string;
   region?: string;
+  createdAt?: Timestamp;
+  lastLoginAt?: Timestamp;
 }
 
 export type User = import("firebase/auth").User & UserProfile;
