@@ -1,3 +1,4 @@
+
 import type { NextRequest } from 'next/server';
 import { authMiddleware } from 'next-firebase-auth-edge';
 import { NextResponse } from 'next/server';
@@ -16,6 +17,12 @@ export async function middleware(request: NextRequest) {
   if (!FIREBASE_PRIVATE_KEY) {
     return NextResponse.next();
   }
+
+  // Explicitly bypass middleware for public visitor pages
+  if (request.nextUrl.pathname.startsWith('/v/')) {
+    return NextResponse.next();
+  }
+  
 
   return authMiddleware(request, {
     loginPath: '/api/auth/login',
@@ -50,5 +57,17 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/user/:path*', '/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - v (public visitor pages)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|v).*)',
+    '/user/:path*', 
+    '/admin/:path*'
+  ],
 };

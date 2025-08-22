@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { doc, getDoc, collection, addDoc, Timestamp, getDocs, query, where, limit, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, Lead, GiftbitBrand } from '@/lib/types';
+import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, Lead, GiftbitBrand, AppSettings } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { sendNewLeadEmail } from '@/lib/email';
-import { getGiftConfigurationForUser } from '@/app/user/gifts/actions';
+import { adminDb } from '@/lib/firebase/server';
 
 
 const leadSchema = z.object({
@@ -36,6 +36,49 @@ const leadSchema = z.object({
   message: "Please provide either an email or a phone number.",
   path: ["email"], // Arbitrarily attach error to email field
 });
+
+const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
+const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
+
+async function getPublicGiftConfiguration(): Promise<{ brands: GiftbitBrand[] }> {
+    if (!GIFTBIT_API_KEY) {
+        console.warn('GIFTBIT_API_KEY is not configured. Gifts will be disabled on public page.');
+        return { brands: [] };
+    }
+    
+    try {
+        const settingsDoc = await getDoc(doc(db, 'settings', 'appDefaults'));
+        const settings = settingsDoc.data() as AppSettings;
+        const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
+
+        const brandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
+            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+            next: { revalidate: 3600 } 
+        });
+
+        if (!brandsResponse.ok) {
+            console.error(`Public Giftbit API Error (Brands: ${brandsResponse.status})`);
+            return { brands: [] };
+        }
+        
+        const brandsData = await brandsResponse.json();
+        const allBrands: GiftbitBrand[] = brandsData.brands || [];
+        const usBrands = allBrands.filter(brand => brand.region_codes.includes('us'));
+
+        if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
+            return { brands: usBrands };
+        }
+
+        const enabledBrands = usBrands.filter((brand) => 
+            enabledBrandCodes.includes(brand.brand_code)
+        );
+        
+        return { brands: enabledBrands };
+    } catch (error: any) {
+        console.error("Error fetching public gift configuration:", error.message);
+        return { brands: [] };
+    }
+}
 
 
 export default function VisitorFeedbackPage() {
@@ -100,7 +143,7 @@ export default function VisitorFeedbackPage() {
             // If gifts are enabled, fetch the specific brand details
             if (houseData.isGiftEnabled && houseData.giftBrandCode) {
                 try {
-                    const { brands } = await getGiftConfigurationForUser();
+                    const { brands } = await getPublicGiftConfiguration();
                     const brandDetails = brands.find(b => b.brand_code === houseData.giftBrandCode);
                     if (brandDetails) {
                         setGiftBrand(brandDetails);
