@@ -5,10 +5,12 @@ import { adminDb } from '@/lib/firebase/server';
 import { Gift, UserProfile, GiftbitBrand, GiftbitRegion, AppSettings } from '@/lib/types';
 import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
 import { sleep } from '@/lib/utils';
+import { FieldValue } from 'firebase-admin/firestore';
 
 
 const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
+const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
 const regionCurrencyMap: { [key: string]: string } = {
     'ca': 'CAD',
@@ -136,6 +138,11 @@ export async function processGift(giftId: string) {
         const userDoc = await userRef.get();
         if (!userDoc.exists) throw new Error('User not found');
         const user = userDoc.data() as UserProfile;
+        
+        // Check balance again on the server side for security
+        if ((user.availableBalance || 0) < gift.amountInCents) {
+            throw new Error('Insufficient funds.');
+        }
 
         // 1. Create the direct link order
         const orderResponse = await createDirectLink(gift);
@@ -148,11 +155,17 @@ export async function processGift(giftId: string) {
             throw new Error(`Link generation failed for gift ${gift.id}. No URL in response.`);
         }
         
-        // 3. Update gift in Firestore
-        await giftRef.update({
-            status: 'Sent',
-            claimUrl: claimUrl,
+        // 3. Update gift in Firestore and deduct balance atomically
+        await adminDb.runTransaction(async (transaction) => {
+             transaction.update(userRef, {
+                availableBalance: FieldValue.increment(-gift.amountInCents)
+            });
+            transaction.update(giftRef, {
+                status: 'Sent',
+                claimUrl: claimUrl,
+            });
         });
+
 
         // 4. Send email to recipient
         await sendGiftEmail({
@@ -160,6 +173,13 @@ export async function processGift(giftId: string) {
             claimUrl: claimUrl,
             sender: user,
         });
+        
+        // 5. Check for low balance and send notification if needed
+        const newBalance = (user.availableBalance || 0) - gift.amountInCents;
+        if (newBalance < LOW_BALANCE_THRESHOLD) {
+            await sendLowBalanceEmail({ user: user, currentBalanceInCents: newBalance });
+        }
+
 
     } catch (error: any) {
         console.error(`Failed to process gift ${giftId}:`, error);

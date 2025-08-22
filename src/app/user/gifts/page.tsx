@@ -33,7 +33,7 @@ const giftFormSchema = z.object({
 
 
 export default function GiftsPage() {
-  const { user, availableBalance } = useAuth();
+  const { user, availableBalance, refreshUserData } = useAuth();
   const { toast } = useToast();
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,6 +203,9 @@ export default function GiftsPage() {
 
         // Trigger background processing
         await processGift(docRef.id);
+        
+        // Refresh user data to reflect new balance
+        await refreshUserData();
 
     } catch (error: any) {
          toast({
