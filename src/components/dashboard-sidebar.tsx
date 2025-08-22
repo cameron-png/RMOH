@@ -109,21 +109,18 @@ export function DashboardSidebar() {
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
-           {user?.isAdmin && (
-            <>
-              <SidebarSeparator className="my-4" />
-              <SidebarMenuItem>
-                <Link href="/admin" onClick={handleLinkClick}>
-                  <SidebarMenuButton size="lg" isActive={isActive('/admin')}>
-                    <Shield /><span>Admin Dashboard</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </>
-          )}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
+         {user?.isAdmin && (
+            <div className="px-3 pb-2">
+                <Link href="/admin" onClick={handleLinkClick}>
+                  <SidebarMenuButton size="default" isActive={isActive('/admin')} className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                    <Shield /><span>Admin Dashboard</span>
+                  </SidebarMenuButton>
+                </Link>
+            </div>
+         )}
          <Link href="/user/billing" onClick={handleLinkClick} className="block px-3 pb-2 text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
             Available Balance: <span className="font-semibold text-sidebar-foreground/90">{formattedBalance}</span>
         </Link>
@@ -145,7 +142,7 @@ export function DashboardSidebar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
                 <Link href="/user/profile" onClick={handleLinkClick}>
-                    <User className="mr-2 h-4 w-4" />
+                    <Settings className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                 </Link>
             </DropdownMenuItem>
