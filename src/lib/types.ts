@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Address {
@@ -120,8 +121,8 @@ export interface GiftbitBrand {
     denominations_in_cents?: number[];
     min_price_in_cents?: number;
     max_price_in_cents?: number;
-    region_codes: string[];
     image_url: string;
+    region_codes: string[];
 }
 
 export interface GiftbitRegion {

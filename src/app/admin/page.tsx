@@ -709,6 +709,11 @@ export default function AdminPage() {
                                     <p>Select a region on the left to see available brands.</p>
                                 </div>
                             )}
+                             {enabledRegionCodes.length > 0 && filteredBrands.length === 0 && (
+                                <div className="text-center py-10 text-muted-foreground">
+                                    <p>No brands available for the selected region(s).</p>
+                                </div>
+                            )}
                         </ScrollArea>
                     </div>
                 </div>

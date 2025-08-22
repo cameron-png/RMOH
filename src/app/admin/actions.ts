@@ -146,12 +146,25 @@ export async function getAvailableGiftbitRegionsAndBrands(): Promise<{ regions: 
             };
         });
         
-        const processedBrands = (brandsData.brands || []).map((brand: any) => ({
-            ...brand,
-            // The brand endpoint doesn't give us region codes, so we add a placeholder.
-            // The frontend will do the actual filtering based on the user's region.
-            region_codes: brand.region_codes || [] 
-        }));
+        // The /brands endpoint does not provide region codes, so we have to assume based on common brand suffixes
+        // or other business logic. For this app, we will assume a brand is available in a region if its brand_code
+        // ends with the region code (e.g., "AMAZONUS" is in "us"). This is a limitation of the API design.
+        const processedBrands = (brandsData.brands || []).map((brand: any) => {
+            const potentialRegionCodes: string[] = [];
+            if (brand.brand_code.endsWith("CA")) potentialRegionCodes.push("ca");
+            if (brand.brand_code.endsWith("US")) potentialRegionCodes.push("us");
+            if (brand.brand_code.endsWith("AU")) potentialRegionCodes.push("au");
+
+            // If no specific region, assume it might be global or available in primary regions
+            if (potentialRegionCodes.length === 0) {
+                 potentialRegionCodes.push("us", "ca", "au", "global");
+            }
+
+            return {
+                ...brand,
+                region_codes: brand.region_codes || potentialRegionCodes
+            };
+        });
 
         return {
             regions: processedRegions,
