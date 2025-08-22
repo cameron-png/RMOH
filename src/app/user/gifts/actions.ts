@@ -173,7 +173,7 @@ export async function declinePendingGift(giftId: string): Promise<{ success: boo
     const giftRef = adminDb.collection('gifts').doc(giftId);
     await giftRef.update({ status: 'Cancelled' });
     return { success: true };
-  } catch (error: any)_ {
+  } catch (error: any) {
     console.error(`Error declining gift ${giftId}:`, error);
     return { success: false, message: 'Failed to decline the gift.' };
   }
