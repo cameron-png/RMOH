@@ -109,13 +109,6 @@ export function DashboardSidebar() {
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
-           <SidebarMenuItem>
-            <Link href="/user/billing" onClick={handleLinkClick}>
-              <SidebarMenuButton size="lg" isActive={isActive('/user/billing')}>
-                <CreditCard /><span>Billing</span>
-              </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
            {user?.isAdmin && (
             <>
               <SidebarSeparator className="my-4" />
@@ -131,9 +124,9 @@ export function DashboardSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-         <div className="px-3 pb-2 text-sm text-sidebar-foreground/70">
+         <Link href="/user/billing" onClick={handleLinkClick} className="block px-3 pb-2 text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
             Available Balance: <span className="font-semibold text-sidebar-foreground/90">{formattedBalance}</span>
-        </div>
+        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 px-2 text-left h-auto text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -154,12 +147,6 @@ export function DashboardSidebar() {
                 <Link href="/user/profile" onClick={handleLinkClick}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
-                </Link>
-            </DropdownMenuItem>
-             <DropdownMenuItem asChild>
-                <Link href="/user/billing" onClick={handleLinkClick}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Billing</span>
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

@@ -2113,6 +2113,10 @@ video {
   color: hsl(var(--sidebar-accent-foreground));
 }
 
+.hover\:text-sidebar-foreground:hover {
+  color: hsl(var(--sidebar-foreground));
+}
+
 .hover\:underline:hover {
   text-decoration-line: underline;
 }
