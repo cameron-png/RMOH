@@ -251,3 +251,41 @@ export async function getGiftbitBalance(): Promise<number | null> {
         return null; // Return null on error so the UI can handle it gracefully
     }
 }
+
+
+export async function resetApplicationSettings(): Promise<{ success: boolean; message: string }> {
+  try {
+    const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
+    const settingsDoc = await settingsDocRef.get();
+
+    if (!settingsDoc.exists) {
+      // If the document doesn't exist, we can just create a clean one.
+      await settingsDocRef.set({});
+      return { success: true, message: 'Settings document was not found and has been initialized.' };
+    }
+
+    const currentSettings = settingsDoc.data() as AppSettings;
+
+    // Create a new object with only the allowed, current fields.
+    const cleanSettings: AppSettings = {};
+    
+    // Explicitly carry over only the fields we know are current.
+    if (currentSettings.defaultGlobalFormId) {
+        cleanSettings.defaultGlobalFormId = currentSettings.defaultGlobalFormId;
+    }
+    if (currentSettings.giftbit) {
+        cleanSettings.giftbit = {
+            enabledBrandCodes: currentSettings.giftbit.enabledBrandCodes || [],
+        };
+    }
+    
+    // Overwrite the document with the cleaned settings object.
+    // This removes any old fields that are not in cleanSettings.
+    await settingsDocRef.set(cleanSettings);
+
+    return { success: true, message: 'Legacy settings have been cleared.' };
+  } catch (error: any) {
+    console.error('Error resetting application settings:', error);
+    return { success: false, message: 'An unexpected error occurred during the settings reset.' };
+  }
+}

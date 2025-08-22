@@ -1111,6 +1111,9 @@ video {
 .max-w-xs {
   max-width: 20rem;
 }
+.max-w-prose {
+  max-width: 65ch;
+}
 .flex-1 {
   flex: 1 1 0%;
 }
@@ -1541,6 +1544,9 @@ video {
 .bg-yellow-100\/60 {
   background-color: rgb(254 249 195 / 0.6);
 }
+.bg-destructive\/5 {
+  background-color: hsl(var(--destructive) / 0.05);
+}
 .fill-current {
   fill: currentColor;
 }
@@ -1834,6 +1840,9 @@ video {
 .text-yellow-800 {
   --tw-text-opacity: 1;
   color: rgb(133 77 14 / var(--tw-text-opacity, 1));
+}
+.text-destructive\/80 {
+  color: hsl(var(--destructive) / 0.8);
 }
 .underline-offset-4 {
   text-underline-offset: 4px;

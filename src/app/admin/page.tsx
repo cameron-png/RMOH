@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock, Copy, Ban, Wallet, Users, BarChart } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock, Copy, Ban, Wallet, Users, BarChart, Settings, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -27,7 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAdminDashboardData, getAvailableGiftbitBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance } from './actions';
+import { getAdminDashboardData, getAvailableGiftbitBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings } from './actions';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -88,6 +88,9 @@ export default function AdminPage() {
 
   const [isCancelGiftDialogOpen, setIsCancelGiftDialogOpen] = useState(false);
   const [giftToCancel, setGiftToCancel] = useState<AdminGift | null>(null);
+
+  const [isResetSettingsOpen, setIsResetSettingsOpen] = useState(false);
+  const [isResettings, setIsResetting] = useState(false);
 
   const getInitials = (name?: string | null) => {
     if (!name) return "??";
@@ -289,6 +292,19 @@ export default function AdminPage() {
     setGiftToCancel(null);
   }
 
+   const handleResetSettings = async () => {
+    setIsResetting(true);
+    const result = await resetApplicationSettings();
+    if (result.success) {
+      toast({ title: "Success", description: result.message });
+      await fetchAllData(); // Refresh data to reflect cleared settings
+    } else {
+      toast({ variant: "destructive", title: "Reset Failed", description: result.message });
+    }
+    setIsResetSettingsOpen(false);
+    setIsResetting(false);
+  };
+
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
       user.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -388,7 +404,7 @@ export default function AdminPage() {
           <TabsTrigger value="openHouses">Open Houses</TabsTrigger>
           <TabsTrigger value="allGifts">All Gifts</TabsTrigger>
           <TabsTrigger value="formLibrary">Form Library</TabsTrigger>
-          <TabsTrigger value="giftBrands">Gift Brands</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         {/* Users Tab */}
@@ -843,8 +859,8 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
         
-         {/* Gift Brands Tab */}
-        <TabsContent value="giftBrands">
+         {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -897,6 +913,30 @@ export default function AdminPage() {
                )}
             </CardContent>
           </Card>
+           <Card className="border-destructive">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-destructive">
+                        <AlertTriangle /> Danger Zone
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-destructive/5 rounded-lg">
+                        <div>
+                            <h4 className="font-semibold">Reset Application Settings</h4>
+                            <p className="text-sm text-destructive/80 max-w-prose mt-1">
+                                This will remove any old or unused setting fields from the database. It can resolve issues caused by feature updates but should be used with caution. Current settings (like enabled gift brands) will be preserved.
+                            </p>
+                        </div>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setIsResetSettingsOpen(true)}
+                            className="w-full sm:w-auto"
+                        >
+                            Reset Settings
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </TabsContent>
         
       </Tabs>
@@ -1045,6 +1085,23 @@ export default function AdminPage() {
       </AlertDialogContent>
     </AlertDialog>
 
+    {/* Reset Settings Confirmation Dialog */}
+    <AlertDialog open={isResetSettingsOpen} onOpenChange={setIsResetSettingsOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Reset Application Settings?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This is a safe operation that removes old, unused setting fields from the database. This can resolve issues from past updates. Your current settings will not be lost.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetSettings} disabled={isResettings}>
+                     {isResettings ? "Resetting..." : "Yes, Reset Settings"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
