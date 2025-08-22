@@ -379,7 +379,7 @@ export default function GiftsPage() {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-muted-foreground">Status:</span>
-                                        <Badge variant={gift.status === 'Available' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                        <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
                                             {gift.status}
                                         </Badge>
                                     </div>
@@ -427,7 +427,7 @@ export default function GiftsPage() {
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={gift.status === 'Available' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                        <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
                                             {gift.status}
                                         </Badge>
                                     </TableCell>

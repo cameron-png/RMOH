@@ -150,7 +150,7 @@ export async function processGift(giftId: string) {
         
         // 3. Update gift in Firestore
         await giftRef.update({
-            status: 'Available',
+            status: 'Sent',
             claimUrl: claimUrl,
         });
 
