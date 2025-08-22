@@ -89,6 +89,18 @@ function generateSignatureHtml(user: UserProfile): string {
   `;
 }
 
+function generateFooterHtml(): string {
+    return `
+        <tr>
+            <td style="padding: 30px 30px 20px 30px;" align="center">
+                <a href="https://ratemyopenhouse.com/" target="_blank">
+                    <img src="https://firebasestorage.googleapis.com/v0/b/openhouse-dashboard.firebasestorage.app/o/RMOHbug.png?alt=media" alt="RateMyOpenHouse.com" width="40" style="display: block; opacity: 0.5;" />
+                </a>
+            </td>
+        </tr>
+    `;
+}
+
 function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amountInCents, claimUrl, openHouseAddress }: SendGiftEmailParams): string {
   const amountDollars = (amountInCents / 100).toFixed(2);
   const brandName = brandCode.charAt(0).toUpperCase() + brandCode.slice(1).replace(/([A-Z])/g, ' $1').trim();
@@ -97,6 +109,7 @@ function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amou
     : `${sender.name} has sent you a <strong>$${amountDollars} ${brandName} gift card</strong>.`;
 
   const signatureHtml = generateSignatureHtml(sender);
+  const footerHtml = generateFooterHtml();
 
   return `
     <!DOCTYPE html>
@@ -149,6 +162,7 @@ function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amou
                   </table>
                 </td>
               </tr>
+              ${footerHtml}
             </table>
           </td>
         </tr>
@@ -161,6 +175,8 @@ function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amou
 
 function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmailParams): string {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ratemyopenhouse.com';
+    const footerHtml = generateFooterHtml();
+
     return `
     <!DOCTYPE html>
     <html>
@@ -200,6 +216,7 @@ function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmail
                   </table>
                 </td>
               </tr>
+              ${footerHtml}
             </table>
           </td>
         </tr>
@@ -212,6 +229,8 @@ function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmail
 function generateLowBalanceEmailHtml({ user, currentBalanceInCents }: LowBalanceEmailParams): string {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ratemyopenhouse.com';
     const balance = (currentBalanceInCents / 100).toFixed(2);
+    const footerHtml = generateFooterHtml();
+
      return `
     <!DOCTYPE html>
     <html>
@@ -249,6 +268,7 @@ function generateLowBalanceEmailHtml({ user, currentBalanceInCents }: LowBalance
                   </table>
                 </td>
               </tr>
+              ${footerHtml}
             </table>
           </td>
         </tr>
