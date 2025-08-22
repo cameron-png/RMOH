@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -567,8 +568,7 @@ export default function OpenHouseDetailPage() {
             <form onSubmit={giftAutomationForm.handleSubmit(onGiftAutomationSubmit)}>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Gift Automation</CardTitle>
-                        <CardDescription>Automatically create a draft gift for every lead who submits feedback.</CardDescription>
+                        <CardTitle>Gifts</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <FormField
@@ -577,9 +577,9 @@ export default function OpenHouseDetailPage() {
                             render={({ field }) => (
                                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                     <div className="space-y-0.5">
-                                        <FormLabel className="text-base">Enable Gifts for New Leads</FormLabel>
+                                        <FormLabel className="text-base">Enable Automated Gifts</FormLabel>
                                         <FormDescription>
-                                            A new gift will be queued for your approval in the Gift Log.
+                                            Automatically queue a gift for each lead.
                                         </FormDescription>
                                     </div>
                                     <FormControl>
