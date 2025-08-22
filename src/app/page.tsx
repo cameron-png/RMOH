@@ -21,7 +21,6 @@ export default function LoginPage() {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background">
         <LoadingAnimation />
-        <p className="text-muted-foreground mt-4">Loading your session...</p>
       </div>
     );
   }

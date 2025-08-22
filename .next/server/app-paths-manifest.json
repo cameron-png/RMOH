@@ -6,5 +6,5 @@
   "/user/billing/page": "app/user/billing/page.js",
   "/user/open-house/[id]/page": "app/user/open-house/[id]/page.js",
   "/admin/page": "app/admin/page.js",
-  "/user/my-leads/page": "app/user/my-leads/page.js"
+  "/user/my-qr-code/page": "app/user/my-qr-code/page.js"
 }
