@@ -274,6 +274,17 @@ export default function AdminPage() {
         house.userName.toLowerCase().includes(houseSearch.toLowerCase())
       );
   }, [openHouses, houseSearch, users]);
+  
+  const filteredBrands = useMemo(() => {
+    if (enabledRegionCodes.length === 0) {
+      return [];
+    }
+    return allBrands
+      .filter(brand => 
+        brand.region_codes.some(code => enabledRegionCodes.includes(code))
+      )
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }, [allBrands, enabledRegionCodes]);
 
   const formatBalance = (balanceInCents?: number) => {
     if (typeof balanceInCents !== 'number') return '$0.00';
@@ -587,10 +598,7 @@ export default function AdminPage() {
                         <h3 className="text-lg font-medium mb-4">Enabled Brands</h3>
                         <ScrollArea className="h-[500px] border rounded-lg p-4">
                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {allBrands
-                                    .filter(brand => brand.region_codes?.some(code => enabledRegionCodes.includes(code)))
-                                    .sort((a,b) => a.name.localeCompare(b.name))
-                                    .map(brand => (
+                                {filteredBrands.map(brand => (
                                     <div key={brand.brand_code} className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50">
                                         <Switch
                                             id={`brand-${brand.brand_code}`}

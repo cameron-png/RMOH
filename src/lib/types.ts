@@ -120,13 +120,13 @@ export interface GiftbitBrand {
     denominations_in_cents?: number[];
     min_price_in_cents?: number;
     max_price_in_cents?: number;
-    region_codes: string[]; // Although the API filters by one, the object itself tells us all it's available in
+    region_codes: string[];
     image_url: string;
 }
 
 export interface GiftbitRegion {
     id: number;
-    code: string; // The text code, e.g. "ca", "us", "au", "global"
+    code: string;
     name: string;
     currency: string;
     image_url: string;

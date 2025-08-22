@@ -137,7 +137,6 @@ export async function getAvailableGiftbitRegionsAndBrands(): Promise<{ regions: 
         const regionsData = await regionsResponse.json();
         const brandsData = await brandsResponse.json();
 
-        // Process regions to add the code and currency
         const processedRegions = (regionsData.regions || []).map((region: any) => {
             const code = getRegionCodeFromName(region.name);
             return {
@@ -146,10 +145,17 @@ export async function getAvailableGiftbitRegionsAndBrands(): Promise<{ regions: 
                 currency: regionCurrencyMap[code] || 'USD'
             };
         });
+        
+        const processedBrands = (brandsData.brands || []).map((brand: any) => ({
+            ...brand,
+            // The brand endpoint doesn't give us region codes, so we add a placeholder.
+            // The frontend will do the actual filtering based on the user's region.
+            region_codes: brand.region_codes || [] 
+        }));
 
         return {
             regions: processedRegions,
-            brands: brandsData.brands || [],
+            brands: processedBrands,
         };
     } catch (error: any) {
         console.error('Error fetching from Giftbit:', error.message);
