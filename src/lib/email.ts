@@ -59,12 +59,10 @@ function generateSignatureHtml(user: UserProfile): string {
         <td style="padding: 20px 0 0 0;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">
             <tr>
-              ${user.photoURL ? `
-              <td width="80" valign="top">
-                <img src="${user.photoURL}" alt="${user.name}" width="80" height="80" style="display: block; border-radius: 50%;" />
-              </td>` : ''}
-              <td style="font-size: 0; line-height: 0;" width="25">&nbsp;</td>
-              <td width="100%" valign="middle" style="font-family: Arial, sans-serif; font-size: 14px; line-height: 20px;">
+              <td align="center" style="font-family: Arial, sans-serif; font-size: 14px; line-height: 20px; text-align: center;">
+                ${user.photoURL ? `
+                <img src="${user.photoURL}" alt="${user.name}" width="80" height="80" style="display: block; border-radius: 50%; margin: 0 auto 10px auto;" />
+                ` : ''}
                 <p style="margin: 0; color: #333333;"><strong>${user.name}</strong></p>
                 ${user.title ? `<p style="margin: 0; color: #555555;">${user.title}</p>` : ''}
                 ${user.brokerageName ? `<p style="margin: 0; color: #555555;">${user.brokerageName}</p>` : ''}
