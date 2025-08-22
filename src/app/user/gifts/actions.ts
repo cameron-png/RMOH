@@ -124,21 +124,6 @@ async function createDirectLink(gift: Gift): Promise<any> {
     return await response.json();
 }
 
-async function getLink(giftId: string): Promise<any> {
-    if (!GIFTBIT_API_KEY) throw new Error("GIFTBIT_API_KEY not configured.");
-
-    const response = await fetch(`${GIFTBIT_BASE_URL}/links/${giftId}`, {
-        headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` }
-    });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to retrieve link for ${giftId}`);
-    }
-    
-    return await response.json();
-}
-
-
 export async function processGift(giftId: string) {
     const giftRef = adminDb.collection('gifts').doc(giftId);
 
@@ -153,30 +138,14 @@ export async function processGift(giftId: string) {
         const user = userDoc.data() as UserProfile;
 
         // 1. Create the direct link order
-        await createDirectLink(gift);
-
-        // 2. Poll for the link to become available
-        let linkData;
-        const fiveMinutesInSeconds = 5 * 60;
-        const pollIntervalSeconds = 10;
-        const maxRetries = fiveMinutesInSeconds / pollIntervalSeconds;
-
-        for (let i = 0; i < maxRetries; i++) {
-            await sleep(pollIntervalSeconds * 1000); // Wait for the specified interval
-            try {
-                linkData = await getLink(gift.id);
-                if (linkData?.links?.[0]?.claim_link) {
-                    break;
-                }
-            } catch (error) {
-                console.log(`Polling for gift ${gift.id}: link not ready yet. Attempt ${i + 1}/${maxRetries}`);
-            }
-        }
+        const orderResponse = await createDirectLink(gift);
         
-        const claimUrl = linkData?.links?.[0]?.claim_link;
+        // 2. Extract the claim URL from the response
+        const claimUrl = orderResponse?.direct_links?.[0];
 
         if (!claimUrl) {
-            throw new Error(`Link generation timed out for gift ${gift.id} after 5 minutes.`);
+            console.error('No claim URL found in Giftbit response for gift:', gift.id, 'Response:', orderResponse);
+            throw new Error(`Link generation failed for gift ${gift.id}. No URL in response.`);
         }
         
         // 3. Update gift in Firestore
