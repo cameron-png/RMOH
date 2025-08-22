@@ -1187,6 +1187,9 @@ video {
 .cursor-pointer {
   cursor: pointer;
 }
+.cursor-help {
+  cursor: help;
+}
 .touch-none {
   touch-action: none;
 }

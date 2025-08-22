@@ -16,13 +16,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings } from 'lucide-react';
+import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { processGift, getGiftConfigurationForUser } from './actions';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
@@ -411,7 +412,23 @@ export default function GiftsPage() {
                                     <TableHead>Amount</TableHead>
                                     <TableHead>Brand</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Link</TableHead>
+                                    <TableHead className="text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <span>Link</span>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="max-w-xs">
+                                                            This is the recipient's live gift card link. It has already been emailed to them, but you can use this to copy and resend it manually.
+                                                        </p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -464,3 +481,5 @@ export default function GiftsPage() {
     </>
   );
 }
+
+    
