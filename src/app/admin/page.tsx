@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings } from '@/lib/types';
+import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings, AdminGift } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -27,8 +27,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAdminDashboardData, getAvailableGiftbitRegionsAndBrands, saveGiftbitSettings } from './actions';
-import { format } from 'date-fns';
+import { getAdminDashboardData, getAvailableGiftbitRegionsAndBrands, saveGiftbitSettings, getAdminGiftData } from './actions';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -53,12 +53,14 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [openHouses, setOpenHouses] = useState<OpenHouse[]>([]);
   const [globalForms, setGlobalForms] = useState<FeedbackForm[]>([]);
+  const [allGifts, setAllGifts] = useState<AdminGift[]>([]);
   const [appSettings, setAppSettings] = useState<AppSettings>({});
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const [userSearch, setUserSearch] = useState('');
   const [houseSearch, setHouseSearch] = useState('');
+  const [giftSearch, setGiftSearch] = useState('');
 
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [formToEdit, setFormToEdit] = useState<FeedbackForm | null>(null);
@@ -69,6 +71,7 @@ export default function AdminPage() {
   const [allRegions, setAllRegions] = useState<GiftbitRegion[]>([]);
   const [allBrands, setAllBrands] = useState<GiftbitBrand[]>([]);
   const [loadingGiftbitData, setLoadingGiftbitData] = useState(true);
+  const [loadingGifts, setLoadingGifts] = useState(true);
 
   const [enabledRegionCodes, setEnabledRegionCodes] = useState<string[]>([]);
   const [enabledBrandCodes, setEnabledBrandCodes] = useState<string[]>([]);
@@ -86,6 +89,7 @@ export default function AdminPage() {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     setLoadingGiftbitData(true);
+    setLoadingGifts(true);
     try {
       const { users, openHouses, forms, settings } = await getAdminDashboardData();
       setUsers(users);
@@ -98,6 +102,11 @@ export default function AdminPage() {
       const { regions, brands } = await getAvailableGiftbitRegionsAndBrands();
       setAllRegions(regions);
       setAllBrands(brands);
+      setLoadingGiftbitData(false);
+
+      const gifts = await getAdminGiftData();
+      setAllGifts(gifts);
+      setLoadingGifts(false);
 
     } catch (error) {
       console.error("Error fetching admin data:", error);
@@ -108,7 +117,6 @@ export default function AdminPage() {
       });
     }
     setLoading(false);
-    setLoadingGiftbitData(false);
   }, [toast]);
 
   useEffect(() => {
@@ -286,6 +294,16 @@ export default function AdminPage() {
       .sort((a,b) => a.name.localeCompare(b.name));
   }, [allBrands, enabledRegionCodes]);
 
+   const filteredGifts = useMemo(() => {
+    return allGifts.filter(gift =>
+      gift.recipientName.toLowerCase().includes(giftSearch.toLowerCase()) ||
+      gift.recipientEmail.toLowerCase().includes(giftSearch.toLowerCase()) ||
+      gift.senderName.toLowerCase().includes(giftSearch.toLowerCase()) ||
+      gift.senderEmail.toLowerCase().includes(giftSearch.toLowerCase()) ||
+      gift.brandCode.toLowerCase().includes(giftSearch.toLowerCase())
+    );
+  }, [allGifts, giftSearch]);
+
   const formatBalance = (balanceInCents?: number) => {
     if (typeof balanceInCents !== 'number') return '$0.00';
     return new Intl.NumberFormat('en-US', {
@@ -299,6 +317,18 @@ export default function AdminPage() {
       const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
       return format(date, 'MMM d, yyyy');
   };
+
+  const formatDateWithTime = (timestamp?: Timestamp | string) => {
+    if (!timestamp) return 'N/A';
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
+    return format(date, 'MMM d, yyyy p');
+  };
+
+  const formatRelativeDate = (timestamp?: Timestamp | string) => {
+    if (!timestamp) return 'N/A';
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
+    return formatDistanceToNow(date, { addSuffix: true });
+  };
     
   return (
     <>
@@ -309,9 +339,10 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 h-auto md:h-10">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-5 h-auto md:h-10">
           <TabsTrigger value="users">All Users</TabsTrigger>
           <TabsTrigger value="openHouses">Open Houses</TabsTrigger>
+          <TabsTrigger value="allGifts">All Gifts</TabsTrigger>
           <TabsTrigger value="formLibrary">Form Library</TabsTrigger>
           <TabsTrigger value="giftBrands">Gift Brands</TabsTrigger>
         </TabsList>
@@ -369,7 +400,7 @@ export default function AdminPage() {
                                </div>
                                 <div className="flex justify-between">
                                    <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-4 h-4"/> Last Activity:</span>
-                                   <span className="font-medium">{formatDate(user.lastLoginAt)}</span>
+                                   <span className="font-medium">{formatDateWithTime(user.lastLoginAt)}</span>
                                </div>
                             </CardContent>
                         </Card>
@@ -422,7 +453,7 @@ export default function AdminPage() {
                                 {formatDate(user.createdAt)}
                            </TableCell>
                            <TableCell>
-                                {formatDate(user.lastLoginAt)}
+                                {formatDateWithTime(user.lastLoginAt)}
                            </TableCell>
                         </TableRow>
                       )) : (
@@ -571,6 +602,87 @@ export default function AdminPage() {
                   </Table>
                 </div>
                 </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* All Gifts Tab */}
+        <TabsContent value="allGifts">
+           <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="w-full">
+                  <CardTitle>All Gifts</CardTitle>
+                  <CardDescription>A complete log of all gifts created by all users.</CardDescription>
+                </div>
+                 <Input
+                    placeholder="Search gifts..."
+                    value={giftSearch}
+                    onChange={(e) => setGiftSearch(e.target.value)}
+                    className="w-full md:w-64"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingGifts ? (
+                 <div className="flex justify-center items-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                 </div>
+              ) : (
+                <div className="border rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Sender</TableHead>
+                        <TableHead>DB Status</TableHead>
+                        <TableHead>Giftbit Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredGifts.length > 0 ? filteredGifts.map(gift => (
+                        <TableRow key={gift.id}>
+                          <TableCell>
+                            <div className="font-medium">{gift.recipientName}</div>
+                            <div className="text-sm text-muted-foreground">{gift.recipientEmail}</div>
+                          </TableCell>
+                          <TableCell>{formatBalance(gift.amountInCents)}</TableCell>
+                          <TableCell>{gift.senderName}</TableCell>
+                           <TableCell>
+                                <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                    {gift.status}
+                                </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {gift.giftbitStatus ? (
+                                 <Badge variant="outline">{gift.giftbitStatus.replace(/_/g, ' ')}</Badge>
+                            ) : <span className="text-muted-foreground text-xs">N/A</span>}
+                          </TableCell>
+                           <TableCell title={formatDateWithTime(gift.createdAt)}>
+                                {formatRelativeDate(gift.createdAt)}
+                           </TableCell>
+                           <TableCell className="text-right">
+                            {gift.claimUrl && (
+                                <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(gift.claimUrl || '')}>
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                            )}
+                           </TableCell>
+                        </TableRow>
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center">
+                            No gifts found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>

@@ -134,3 +134,12 @@ export interface GiftbitRegion {
     currency: string;
     image_url: string;
 }
+
+
+// Represents the combined view of a gift for the admin dashboard
+export interface AdminGift extends Gift {
+    senderName: string;
+    senderEmail: string;
+    giftbitStatus?: string; // e.g., "sent_and_not_viewed", "redeemed"
+    giftbitRedeemedDate?: string | null;
+}

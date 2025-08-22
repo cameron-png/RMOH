@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings } from '@/lib/types';
+import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
 
 
 function serializeTimestamps(obj: any): any {
@@ -184,5 +184,58 @@ export async function saveGiftbitSettings(settings: GiftbitSettings): Promise<{ 
     } catch (error: any) {
         console.error("Error saving Giftbit settings:", error);
         return { success: false, message: 'Failed to save settings.' };
+    }
+}
+
+
+export async function getAdminGiftData(): Promise<AdminGift[]> {
+    if (!GIFTBIT_API_KEY) {
+        console.log('GIFTBIT_API_KEY is not configured on the server. Skipping Giftbit API call.');
+    }
+
+    try {
+        const [giftsSnapshot, usersSnapshot, giftbitRewardsResponse] = await Promise.all([
+            adminDb.collection('gifts').orderBy('createdAt', 'desc').get(),
+            adminDb.collection('users').get(),
+            GIFTBIT_API_KEY ? fetch(`${GIFTBIT_BASE_URL}/gifts?limit=500`, { // Fetch all gifts/rewards from giftbit
+                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+                next: { revalidate: 60 } // Revalidate every minute
+            }) : Promise.resolve(null)
+        ]);
+
+        const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as UserProfile]));
+        const giftsFromDb = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
+        
+        let giftbitRewardsMap = new Map();
+        if (giftbitRewardsResponse && giftbitRewardsResponse.ok) {
+            const giftbitData = await giftbitRewardsResponse.json();
+            (giftbitData.gifts || []).forEach((reward: any) => {
+                giftbitRewardsMap.set(reward.uuid, reward);
+            });
+        } else if (giftbitRewardsResponse) {
+             console.error('Giftbit API Error:', {
+                status: giftbitRewardsResponse.status,
+                body: await giftbitRewardsResponse.text(),
+            });
+        }
+        
+        const combinedGifts = giftsFromDb.map(gift => {
+            const sender = usersMap.get(gift.userId);
+            const giftbitReward = giftbitRewardsMap.get(gift.id);
+
+            return {
+                ...gift,
+                senderName: sender?.name || 'Unknown User',
+                senderEmail: sender?.email || 'N/A',
+                giftbitStatus: giftbitReward?.status,
+                giftbitRedeemedDate: giftbitReward?.redeemed_date,
+            };
+        });
+
+        return serializeTimestamps(combinedGifts) as AdminGift[];
+
+    } catch (error: any) {
+        console.error("Error in getAdminGiftData:", error);
+        throw new Error("Failed to fetch admin gift data: " + error.message);
     }
 }
