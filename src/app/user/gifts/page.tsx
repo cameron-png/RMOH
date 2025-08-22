@@ -343,30 +343,28 @@ export default function GiftsPage() {
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="recipientName"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Recipient Name</FormLabel>
-                                        <FormControl><Input placeholder="Jane Doe" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="recipientEmail"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Recipient Email</FormLabel>
-                                        <FormControl><Input placeholder="jane.doe@example.com" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            </div>
+                            <FormField
+                                control={form.control}
+                                name="recipientName"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Recipient Name</FormLabel>
+                                    <FormControl><Input placeholder="Jane Doe" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="recipientEmail"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Recipient Email</FormLabel>
+                                    <FormControl><Input placeholder="jane.doe@example.com" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                             <FormField
                                 control={form.control}
                                 name="brand"
