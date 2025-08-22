@@ -98,9 +98,9 @@ export default function VisitorFeedbackPage() {
             setRealtor(realtorData);
 
             // If gifts are enabled, fetch the specific brand details
-            if (houseData.isGiftEnabled && houseData.giftBrandCode && realtorData.region) {
+            if (houseData.isGiftEnabled && houseData.giftBrandCode) {
                 try {
-                    const { brands } = await getGiftConfigurationForUser(realtorData.region);
+                    const { brands } = await getGiftConfigurationForUser();
                     const brandDetails = brands.find(b => b.brand_code === houseData.giftBrandCode);
                     if (brandDetails) {
                         setGiftBrand(brandDetails);

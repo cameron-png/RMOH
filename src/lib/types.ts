@@ -52,7 +52,7 @@ export interface UserProfile {
   apiKey?: string;
   personalLogoUrl?: string;
   brokerageLogoUrl?: string;
-  region?: string;
+  region?: 'us' | 'ca' | 'au' | 'global';
   createdAt?: Timestamp;
   lastLoginAt?: Timestamp;
 }
@@ -111,7 +111,6 @@ export interface Gift {
 }
 
 export interface GiftbitSettings {
-    enabledRegionCodes?: string[];
     enabledBrandCodes?: string[];
 }
 
@@ -130,15 +129,6 @@ export interface GiftbitBrand {
     image_url: string;
     region_codes: string[];
 }
-
-export interface GiftbitRegion {
-    id: number;
-    code: string;
-    name: string;
-    currency: string;
-    image_url: string;
-}
-
 
 // Represents the combined view of a gift for the admin dashboard
 export interface AdminGift extends Gift {

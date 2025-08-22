@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings, AdminGift } from '@/lib/types';
+import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitBrand, GiftbitSettings, AdminGift } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,7 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAdminDashboardData, getAvailableGiftbitRegionsAndBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance } from './actions';
+import { getAdminDashboardData, getAvailableGiftbitBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance } from './actions';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,12 +79,10 @@ export default function AdminPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<string | null>(null);
   
-  const [allRegions, setAllRegions] = useState<GiftbitRegion[]>([]);
   const [allBrands, setAllBrands] = useState<GiftbitBrand[]>([]);
   const [loadingGiftbitData, setLoadingGiftbitData] = useState(true);
   const [loadingGifts, setLoadingGifts] = useState(true);
 
-  const [enabledRegionCodes, setEnabledRegionCodes] = useState<string[]>([]);
   const [enabledBrandCodes, setEnabledBrandCodes] = useState<string[]>([]);
   const [isSavingGiftbit, setIsSavingGiftbit] = useState(false);
 
@@ -111,11 +109,9 @@ export default function AdminPage() {
       setOpenHouses(openHouses);
       setGlobalForms(forms);
       setAppSettings(settings);
-      setEnabledRegionCodes(settings.giftbit?.enabledRegionCodes || []);
       setEnabledBrandCodes(settings.giftbit?.enabledBrandCodes || []);
       
-      const { regions, brands } = await getAvailableGiftbitRegionsAndBrands();
-      setAllRegions(regions);
+      const { brands } = await getAvailableGiftbitBrands();
       setAllBrands(brands);
       setLoadingGiftbitData(false);
 
@@ -262,12 +258,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleRegionToggle = (regionCode: string, checked: boolean) => {
-    setEnabledRegionCodes(prev => 
-        checked ? [...prev, regionCode] : prev.filter(code => code !== regionCode)
-    );
-  };
-
   const handleBrandToggle = (brandCode: string, checked: boolean) => {
     setEnabledBrandCodes(prev =>
         checked ? [...prev, brandCode] : prev.filter(code => code !== brandCode)
@@ -276,7 +266,7 @@ export default function AdminPage() {
   
   const handleSaveGiftbitSettings = async () => {
     setIsSavingGiftbit(true);
-    const settings: GiftbitSettings = { enabledRegionCodes, enabledBrandCodes };
+    const settings: GiftbitSettings = { enabledBrandCodes };
     const result = await saveGiftbitSettings(settings);
     if (result.success) {
         toast({ title: "Giftbit settings saved successfully!" });
@@ -320,15 +310,8 @@ export default function AdminPage() {
   }, [openHouses, houseSearch, users]);
   
   const filteredBrands = useMemo(() => {
-    if (enabledRegionCodes.length === 0) {
-      return [];
-    }
-    return allBrands
-      .filter(brand => 
-        brand.region_codes.some(code => enabledRegionCodes.includes(code))
-      )
-      .sort((a,b) => a.name.localeCompare(b.name));
-  }, [allBrands, enabledRegionCodes]);
+    return allBrands.sort((a,b) => a.name.localeCompare(b.name));
+  }, [allBrands]);
 
    const filteredGifts = useMemo(() => {
     return allGifts.filter(gift =>
@@ -865,7 +848,7 @@ export default function AdminPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle>Gift Brands</CardTitle>
-                  <CardDescription>Configure which gift card regions and brands are available to users.</CardDescription>
+                  <CardDescription>Configure which gift card brands are available to users.</CardDescription>
                 </div>
                  <Button onClick={handleSaveGiftbitSettings} disabled={isSavingGiftbit} className="w-full sm:w-auto">
                     {isSavingGiftbit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -879,61 +862,35 @@ export default function AdminPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                  </div>
                ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-                    {/* Regions */}
-                    <div className="md:col-span-1 space-y-4">
-                        <h3 className="text-lg font-medium">Enabled Regions</h3>
-                        <div className="space-y-3">
-                            {allRegions.map(region => (
-                                <div key={region.code} className="flex items-center space-x-2 p-3 rounded-md hover:bg-muted/50">
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Enabled Brands (USA)</h3>
+                    <ScrollArea className="h-[600px] border rounded-lg p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {filteredBrands.map(brand => (
+                                <div key={brand.brand_code} className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50">
                                     <Switch
-                                        id={`region-${region.code}`}
-                                        checked={enabledRegionCodes.includes(region.code)}
-                                        onCheckedChange={(checked) => handleRegionToggle(region.code, checked)}
+                                        id={`brand-${brand.brand_code}`}
+                                        checked={enabledBrandCodes.includes(brand.brand_code)}
+                                        onCheckedChange={(checked) => handleBrandToggle(brand.brand_code, checked)}
+                                        className="mt-1"
                                     />
-                                    <label htmlFor={`region-${region.code}`} className="text-sm font-medium leading-none flex-grow cursor-pointer">
-                                       {region.name} ({region.currency})
+                                    <label htmlFor={`brand-${brand.brand_code}`} className="flex flex-col gap-2 cursor-pointer">
+                                        <div className="w-20 h-10 relative bg-white rounded border flex items-center justify-center">
+                                            <Image src={brand.image_url} alt={brand.name} fill className="object-contain p-1" data-ai-hint="company logo"/>
+                                        </div>
+                                        <span className="text-sm font-medium leading-none">
+                                            {brand.name}
+                                        </span>
                                     </label>
                                 </div>
                             ))}
                         </div>
-                    </div>
-                    {/* Brands */}
-                    <div className="md:col-span-2">
-                        <h3 className="text-lg font-medium mb-4">Enabled Brands</h3>
-                        <ScrollArea className="h-[500px] border rounded-lg p-4">
-                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredBrands.map(brand => (
-                                    <div key={brand.brand_code} className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50">
-                                        <Switch
-                                            id={`brand-${brand.brand_code}`}
-                                            checked={enabledBrandCodes.includes(brand.brand_code)}
-                                            onCheckedChange={(checked) => handleBrandToggle(brand.brand_code, checked)}
-                                            className="mt-1"
-                                        />
-                                        <label htmlFor={`brand-${brand.brand_code}`} className="flex flex-col gap-2 cursor-pointer">
-                                            <div className="w-20 h-10 relative bg-white rounded border flex items-center justify-center">
-                                                <Image src={brand.image_url} alt={brand.name} fill className="object-contain p-1" data-ai-hint="company logo"/>
-                                            </div>
-                                            <span className="text-sm font-medium leading-none">
-                                                {brand.name}
-                                            </span>
-                                        </label>
-                                    </div>
-                                ))}
+                        {filteredBrands.length === 0 && (
+                            <div className="text-center py-10 text-muted-foreground">
+                                <p>No US brands available from Giftbit.</p>
                             </div>
-                            {enabledRegionCodes.length === 0 && (
-                                <div className="text-center py-10 text-muted-foreground">
-                                    <p>Select a region on the left to see available brands.</p>
-                                </div>
-                            )}
-                             {enabledRegionCodes.length > 0 && filteredBrands.length === 0 && (
-                                <div className="text-center py-10 text-muted-foreground">
-                                    <p>No brands available for the selected region(s).</p>
-                                </div>
-                            )}
-                        </ScrollArea>
-                    </div>
+                        )}
+                    </ScrollArea>
                 </div>
                )}
             </CardContent>
@@ -1089,5 +1046,3 @@ export default function AdminPage() {
     </>
   );
 }
-
-    

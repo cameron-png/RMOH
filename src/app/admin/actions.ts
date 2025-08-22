@@ -91,78 +91,34 @@ export async function getAdminDashboardData() {
 const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
-const regionCurrencyMap: { [key: string]: string } = {
-    'ca': 'CAD',
-    'us': 'USD',
-    'au': 'AUD',
-    'global': 'USD'
-};
 
-function getRegionCodeFromName(name: string): string {
-    if (name === "USA") return "us";
-    if (name === "Canada") return "ca";
-    if (name === "Australia") return "au";
-    return name.toLowerCase();
-}
-
-
-export async function getAvailableGiftbitRegionsAndBrands(): Promise<{ regions: GiftbitRegion[], brands: GiftbitBrand[] }> {
+export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBrand[] }> {
     if (!GIFTBIT_API_KEY) {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
     }
 
     try {
-        const [regionsResponse, brandsResponse] = await Promise.all([
-            fetch(`${GIFTBIT_BASE_URL}/regions`, {
-                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-                next: { revalidate: 86400 } // Revalidate once a day
-            }),
-            fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, { // Fetch all brands
-                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-                next: { revalidate: 3600 } // Revalidate every hour
-            })
-        ]);
+        const brandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
+            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
+            next: { revalidate: 3600 } // Revalidate every hour
+        });
 
-        if (!regionsResponse.ok || !brandsResponse.ok) {
+        if (!brandsResponse.ok) {
             console.error('Giftbit API Error:', {
-                regionsStatus: regionsResponse.status,
                 brandsStatus: brandsResponse.status,
             });
             throw new Error('Failed to fetch data from Giftbit.');
         }
 
-        const regionsData = await regionsResponse.json();
         const brandsData = await brandsResponse.json();
 
-        const processedRegions = (regionsData.regions || []).map((region: any) => {
-            const code = getRegionCodeFromName(region.name);
-            return {
-                ...region,
-                code: code,
-                currency: regionCurrencyMap[code] || 'USD'
-            };
-        });
-        
-        const processedBrands = (brandsData.brands || []).map((brand: any) => {
-            const potentialRegionCodes: string[] = [];
-            if (brand.brand_code.endsWith("CA")) potentialRegionCodes.push("ca");
-            if (brand.brand_code.endsWith("US")) potentialRegionCodes.push("us");
-            if (brand.brand_code.endsWith("AU")) potentialRegionCodes.push("au");
-
-            // If no specific region, assume it might be global or available in primary regions
-            if (potentialRegionCodes.length === 0) {
-                 potentialRegionCodes.push("us", "ca", "au", "global");
-            }
-
-            return {
-                ...brand,
-                region_codes: brand.region_codes || potentialRegionCodes
-            };
-        });
+        // Filter for brands available in the US
+        const usBrands = (brandsData.brands || []).filter((brand: any) => 
+            brand.region_codes.includes("us")
+        );
 
         return {
-            regions: processedRegions,
-            brands: processedBrands,
+            brands: usBrands,
         };
     } catch (error: any) {
         console.error('Error fetching from Giftbit:', error.message);
@@ -292,5 +248,3 @@ export async function getGiftbitBalance(): Promise<number | null> {
         return null; // Return null on error so the UI can handle it gracefully
     }
 }
-
-    

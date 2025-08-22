@@ -10,10 +10,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { FeedbackForm, GiftbitRegion } from '@/lib/types';
+import { FeedbackForm } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { getGiftConfigurationForUser, getGiftbitRegions } from '@/app/user/gifts/actions';
-
 
 import { Button } from '@/components/ui/button';
 import {
@@ -42,7 +40,6 @@ const profileFormSchema = z.object({
   licenseNumber: z.string().optional(),
   brokerageName: z.string().optional(),
   defaultFormId: z.string().optional(),
-  region: z.string().optional(),
 });
 
 export default function ProfilePage() {
@@ -50,8 +47,6 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [formattedPhone, setFormattedPhone] = useState("");
   const [availableForms, setAvailableForms] = useState<FeedbackForm[]>([]);
-  const [regions, setRegions] = useState<GiftbitRegion[]>([]);
-  const [loadingRegions, setLoadingRegions] = useState(true);
   const [apiKey, setApiKey] = useState<string | null>(null);
   
   const personalLogoInputRef = useRef<HTMLInputElement>(null);
@@ -75,15 +70,13 @@ export default function ProfilePage() {
       licenseNumber: '',
       brokerageName: '',
       defaultFormId: '',
-      region: '',
     },
   });
   
   const fetchInitialData = useCallback(async () => {
     if (!user) return;
     
-    setLoadingRegions(true);
-    // Fetch forms and regions
+    // Fetch forms
     try {
         const { collection, query, where, getDocs } = await import('firebase/firestore');
         const globalQuery = query(collection(db, 'feedbackForms'), where('type', '==', 'global'));
@@ -93,10 +86,9 @@ export default function ProfilePage() {
           where('userId', '==', user.uid)
         );
         
-        const [globalSnapshot, customSnapshot, fetchedRegions] = await Promise.all([
+        const [globalSnapshot, customSnapshot] = await Promise.all([
             getDocs(globalQuery), 
             getDocs(customQuery),
-            getGiftbitRegions()
         ]);
         
         const allForms = [
@@ -104,17 +96,14 @@ export default function ProfilePage() {
             ...customSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackForm)),
         ];
         setAvailableForms(allForms);
-        setRegions(fetchedRegions);
 
     } catch (e) {
-        console.error("Failed to fetch initial data: ", e);
+        console.error("Failed to fetch forms: ", e);
         toast({
             variant: "destructive",
             title: "Error",
             description: "Could not load required data. Please refresh.",
         });
-    } finally {
-        setLoadingRegions(false);
     }
 
 
@@ -126,7 +115,6 @@ export default function ProfilePage() {
       licenseNumber: user.licenseNumber || '',
       brokerageName: user.brokerageName || '',
       defaultFormId: user.defaultFormId || '',
-      region: user.region || '',
     });
     setFormattedPhone(formatPhoneNumber(user.phone || ""));
     setNewPhotoURL(user.photoURL || null);
@@ -216,7 +204,6 @@ export default function ProfilePage() {
         licenseNumber: values.licenseNumber,
         brokerageName: values.brokerageName,
         defaultFormId: values.defaultFormId,
-        region: values.region,
         photoURL: newPhotoURL,
         personalLogoUrl: newPersonalLogoUrl,
         brokerageLogoUrl: newBrokerageLogoUrl,
@@ -384,9 +371,6 @@ export default function ProfilePage() {
           </div>
       </FormItem>
   );
-
-  const uniqueRegions = Array.from(new Map(regions.map(item => [item.code, item])).values());
-
 
   return (
     <div className="w-full mx-auto space-y-8">
@@ -592,54 +576,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Gift Preferences</CardTitle>
-              <CardDescription>
-                Select your region to see relevant gift card brands.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="region"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gift Card Region</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={loadingRegions}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              loadingRegions
-                                ? 'Loading regions...'
-                                : 'Select a region'
-                            }
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {uniqueRegions.map(region => (
-                          <SelectItem key={region.code} value={region.code}>
-                            {region.name} ({region.currency})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      This sets the available brands and currency for sending gifts.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
            <div className="flex justify-end mt-8">
                 <Button type="submit" disabled={!hasUnsavedChanges || form.formState.isSubmitting || isUploadingPhoto || isUploadingPersonal || isUploadingBrokerage}>
                    {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
@@ -702,5 +638,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

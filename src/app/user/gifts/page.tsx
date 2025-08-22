@@ -137,11 +137,11 @@ export default function GiftsPage() {
 
   useEffect(() => {
     async function loadConfiguration() {
-      if (!user?.region) return;
+      if (!user) return;
 
       setLoadingBrands(true);
       try {
-        const { brands } = await getGiftConfigurationForUser(user.region);
+        const { brands } = await getGiftConfigurationForUser();
         setBrands(brands);
       } catch (error) {
         toast({
@@ -288,33 +288,6 @@ export default function GiftsPage() {
     }
   };
   
-  if (!user?.region) {
-    return (
-        <div className="w-full mx-auto space-y-8">
-            <Card className="mt-8">
-                <CardHeader>
-                    <CardTitle>Region Not Set</CardTitle>
-                    <CardDescription>
-                        Please set your region in your profile to use the gift-giving features.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p>Your region determines which gift card brands and currencies are available to you.</p>
-                </CardContent>
-                <CardFooter>
-                    <Button asChild>
-                        <Link href="/user/profile">
-                            <Settings className="mr-2" />
-                            Go to Profile Settings
-                        </Link>
-                    </Button>
-                </CardFooter>
-            </Card>
-        </div>
-    )
-  }
-
-
   return (
     <>
     <div className="w-full mx-auto space-y-8">
@@ -643,5 +616,3 @@ export default function GiftsPage() {
     </>
   );
 }
-
-    
