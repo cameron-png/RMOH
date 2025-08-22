@@ -551,7 +551,7 @@ export default function AdminPage() {
                   <CardTitle>Gift Brands</CardTitle>
                   <CardDescription>Configure which gift card regions and brands are available to users.</CardDescription>
                 </div>
-                 <Button onClick={handleSaveGiftbitSettings} disabled={isSavingGiftbit}>
+                 <Button onClick={handleSaveGiftbitSettings} disabled={isSavingGiftbit} className="w-full sm:w-auto">
                     {isSavingGiftbit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Changes
                 </Button>
@@ -565,17 +565,17 @@ export default function AdminPage() {
                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                     {/* Regions */}
-                    <div className="md:col-span-1">
-                        <h3 className="text-lg font-medium mb-4">Enabled Regions</h3>
+                    <div className="md:col-span-1 space-y-4">
+                        <h3 className="text-lg font-medium">Enabled Regions</h3>
                         <div className="space-y-3">
                             {allRegions.map(region => (
-                                <div key={region.code} className="flex items-center space-x-2">
+                                <div key={region.code} className="flex items-center space-x-2 p-3 rounded-md hover:bg-muted/50">
                                     <Switch
                                         id={`region-${region.code}`}
                                         checked={enabledRegionCodes.includes(region.code)}
                                         onCheckedChange={(checked) => handleRegionToggle(region.code, checked)}
                                     />
-                                    <label htmlFor={`region-${region.code}`} className="text-sm font-medium leading-none">
+                                    <label htmlFor={`region-${region.code}`} className="text-sm font-medium leading-none flex-grow cursor-pointer">
                                        {region.name} ({region.currency})
                                     </label>
                                 </div>
@@ -753,3 +753,5 @@ export default function AdminPage() {
     </>
   );
 }
+
+    

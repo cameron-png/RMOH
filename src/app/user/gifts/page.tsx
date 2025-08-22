@@ -354,69 +354,112 @@ export default function GiftsPage() {
                 <CardDescription>A list of all the gifts you have created.</CardDescription>
             </CardHeader>
             <CardContent>
-               <div className="border rounded-lg overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Recipient</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Brand</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Link</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loading ? (
-                          <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading gifts...</TableCell></TableRow>
-                      ) : gifts.length > 0 ? (
-                        gifts.map((gift) => (
-                          <TableRow key={gift.id}>
-                            <TableCell>
-                                <div>{gift.recipientName}</div>
-                                <div className="text-xs text-muted-foreground">{gift.recipientEmail}</div>
-                            </TableCell>
-                            <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
-                             <TableCell>
-                                {gift.brandCode ? (
-                                    <span>{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
-                                ) : (
-                                    <span>-</span>
-                                )}
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={gift.status === 'Available' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
-                                    {gift.status}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                                {gift.claimUrl ? (
-                                    <Button variant="outline" size="sm" onClick={() => handleCopyLink(gift.claimUrl!)}>
-                                        <Copy className="mr-2 h-4 w-4" />
-                                        Copy Link
-                                    </Button>
-                                ) : (
-                                    <span>-</span>
-                                )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
-                             <div className="flex flex-col items-center gap-2">
-                                <GiftIcon className="h-8 w-8 text-muted-foreground" />
-                                <span className="font-medium">No Gifts Created Yet</span>
-                                <span className="text-sm text-muted-foreground">Click "Create Gift" to send your first one.</span>
-                             </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                {loading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : gifts.length > 0 ? (
+                    <>
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                        {gifts.map((gift) => (
+                            <Card key={gift.id}>
+                                <CardHeader>
+                                    <CardTitle className="text-base">{gift.recipientName}</CardTitle>
+                                    <CardDescription>{gift.recipientEmail}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Amount:</span>
+                                        <span className="font-medium">{formatCurrency(gift.amountInCents)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Brand:</span>
+                                        <span className="font-medium">{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Status:</span>
+                                        <Badge variant={gift.status === 'Available' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                            {gift.status}
+                                        </Badge>
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    {gift.claimUrl ? (
+                                        <Button variant="outline" size="sm" onClick={() => handleCopyLink(gift.claimUrl!)} className="w-full">
+                                            <Copy className="mr-2 h-4 w-4" /> Copy Link
+                                        </Button>
+                                    ) : (
+                                        <Button variant="outline" size="sm" className="w-full" disabled>
+                                            Link Not Available
+                                        </Button>
+                                    )}
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                    
+                    {/* Desktop Table View */}
+                    <div className="border rounded-lg hidden md:block overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Recipient</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Brand</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Link</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {gifts.map((gift) => (
+                                <TableRow key={gift.id}>
+                                    <TableCell>
+                                        <div>{gift.recipientName}</div>
+                                        <div className="text-xs text-muted-foreground">{gift.recipientEmail}</div>
+                                    </TableCell>
+                                    <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
+                                    <TableCell>
+                                        {gift.brandCode ? (
+                                            <span>{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
+                                        ) : (
+                                            <span>-</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={gift.status === 'Available' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                            {gift.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {gift.claimUrl ? (
+                                            <Button variant="outline" size="sm" onClick={() => handleCopyLink(gift.claimUrl!)}>
+                                                <Copy className="mr-2 h-4 w-4" /> Copy Link
+                                            </Button>
+                                        ) : (
+                                            <span>-</span>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    </>
+                ) : (
+                    <div className="text-center py-16 border-2 border-dashed rounded-lg">
+                        <div className="flex flex-col items-center gap-2">
+                        <GiftIcon className="h-8 w-8 text-muted-foreground" />
+                        <span className="font-medium">No Gifts Created Yet</span>
+                        <span className="text-sm text-muted-foreground">Click "Create Gift" to send your first one.</span>
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
     </div>
     </>
   );
 }
+
+    
