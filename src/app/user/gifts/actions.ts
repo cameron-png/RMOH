@@ -74,7 +74,8 @@ export async function getGiftbitBrands(regionCode: string): Promise<GiftbitBrand
     const settings = settingsDoc.data() as AppSettings;
     const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
 
-    const response = await fetch(`${GIFTBIT_BASE_URL}/brands?region_code=${regionCode}`, {
+    // Fetch all brands for the specified region
+    const response = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500&region_code=${regionCode}`, {
         headers: {
             'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
         },
@@ -87,14 +88,14 @@ export async function getGiftbitBrands(regionCode: string): Promise<GiftbitBrand
     }
     
     const data = await response.json();
-    const allBrands = data.brands || [];
+    const allBrandsForRegion = data.brands || [];
 
     // If no brands are configured in settings, allow all for that region. Otherwise, filter.
     if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
-        return allBrands;
+        return allBrandsForRegion;
     }
 
-    return allBrands.filter((brand: GiftbitBrand) => enabledBrandCodes.includes(brand.brand_code));
+    return allBrandsForRegion.filter((brand: GiftbitBrand) => enabledBrandCodes.includes(brand.brand_code));
 }
 
 

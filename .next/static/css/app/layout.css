@@ -2828,10 +2828,6 @@ video {
     display: table-cell;
   }
 
-  .sm\:hidden {
-    display: none;
-  }
-
   .sm\:h-12 {
     height: 3rem;
   }
