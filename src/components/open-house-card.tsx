@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -6,18 +7,20 @@ import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { OpenHouse } from '@/lib/types';
-import { Home, QrCode, Users, MessageSquare } from 'lucide-react';
+import { Home, QrCode, Users, MessageSquare, Gift } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from './ui/separator';
+import { cn } from '@/lib/utils';
 
 type OpenHouseCardProps = {
   openHouse: OpenHouse;
   leadCount: number;
   feedbackCount: number;
+  isGiftEnabled: boolean;
   onSetActive: (id: string) => void;
 };
 
-export function OpenHouseCard({ openHouse, leadCount, feedbackCount, onSetActive }: OpenHouseCardProps) {
+export function OpenHouseCard({ openHouse, leadCount, feedbackCount, isGiftEnabled, onSetActive }: OpenHouseCardProps) {
     if (!openHouse.address) {
         // Return a loading state or null if address is not yet available
         return (
@@ -84,8 +87,13 @@ export function OpenHouseCard({ openHouse, leadCount, feedbackCount, onSetActive
                     <Separator orientation="vertical" className="h-4 hidden sm:block"/>
                     <Link href={`/user/open-house/${openHouse.id}/feedback`} className="hover:underline flex items-center gap-2">
                         <MessageSquare className="w-4 h-4" />
-                            <span>{feedbackCount} {feedbackCount === 1 ? 'Entry' : 'Entries'}</span>
+                        <span>{feedbackCount} {feedbackCount === 1 ? 'Entry' : 'Entries'}</span>
                     </Link>
+                     <Separator orientation="vertical" className="h-4 hidden sm:block"/>
+                     <div className={cn("flex items-center gap-2", isGiftEnabled ? 'text-green-600' : 'text-muted-foreground')}>
+                        <Gift className="w-4 h-4" />
+                        <span>Gifts {isGiftEnabled ? 'On' : 'Off'}</span>
+                    </div>
                 </div>
             </div>
         </Card>

@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   
   const [newLeadsCount, setNewLeadsCount] = useState(0);
+  const [pendingGiftsCount, setPendingGiftsCount] = useState(0);
   const [activeHouse, setActiveHouse] = useState<OpenHouse | null>(null);
 
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +85,15 @@ export default function DashboardPage() {
       const newLeadsSnapshot = await getDocs(newLeadsQuery);
       setNewLeadsCount(newLeadsSnapshot.size);
       
+      // Fetch pending gifts count
+      const pendingGiftsQuery = query(
+          collection(db, 'gifts'),
+          where('userId', '==', user.uid),
+          where('status', '==', 'Pending')
+      );
+      const pendingGiftsSnapshot = await getDocs(pendingGiftsQuery);
+      setPendingGiftsCount(pendingGiftsSnapshot.size);
+
       if (houses.length === 0) {
         setLoading(false);
         return;
@@ -272,7 +282,7 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">An overview of your open house activity.</p>
       </div>
 
-       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card asChild>
             <Link href="/user/my-leads">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -281,6 +291,17 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{loading ? "..." : newLeadsCount}</div>
+                </CardContent>
+            </Link>
+        </Card>
+        <Card asChild>
+            <Link href="/user/gifts">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Gifts</CardTitle>
+                    <Gift className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{loading ? "..." : pendingGiftsCount}</div>
                 </CardContent>
             </Link>
         </Card>
@@ -404,6 +425,7 @@ export default function DashboardPage() {
                         openHouse={house} 
                         leadCount={leadCounts.get(house.id) || 0}
                         feedbackCount={feedbackCounts.get(house.id) || 0}
+                        isGiftEnabled={house.isGiftEnabled || false}
                         onSetActive={handleSetActive}
                       />
                   ))}
