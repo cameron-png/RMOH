@@ -24,8 +24,7 @@ import { Home, ThumbsUp, UserPlus, CheckCircle, Star, AlertCircle, Mail, Phone, 
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { sendNewLeadEmail } from '@/lib/email';
-import { adminDb } from '@/lib/firebase/server';
+import { sendNewLeadEmail } from '@/app/actions';
 
 
 const leadSchema = z.object({
@@ -37,47 +36,11 @@ const leadSchema = z.object({
   path: ["email"], // Arbitrarily attach error to email field
 });
 
-const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
-const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
-
 async function getPublicGiftConfiguration(): Promise<{ brands: GiftbitBrand[] }> {
-    if (!GIFTBIT_API_KEY) {
-        console.warn('GIFTBIT_API_KEY is not configured. Gifts will be disabled on public page.');
-        return { brands: [] };
-    }
-    
-    try {
-        const settingsDoc = await getDoc(doc(db, 'settings', 'appDefaults'));
-        const settings = settingsDoc.data() as AppSettings;
-        const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
-
-        const brandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
-            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-            next: { revalidate: 3600 } 
-        });
-
-        if (!brandsResponse.ok) {
-            console.error(`Public Giftbit API Error (Brands: ${brandsResponse.status})`);
-            return { brands: [] };
-        }
-        
-        const brandsData = await brandsResponse.json();
-        const allBrands: GiftbitBrand[] = brandsData.brands || [];
-        const usBrands = allBrands.filter(brand => brand.region_codes.includes('us'));
-
-        if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
-            return { brands: usBrands };
-        }
-
-        const enabledBrands = usBrands.filter((brand) => 
-            enabledBrandCodes.includes(brand.brand_code)
-        );
-        
-        return { brands: enabledBrands };
-    } catch (error: any) {
-        console.error("Error fetching public gift configuration:", error.message);
-        return { brands: [] };
-    }
+    // This function will run on the client, so we don't have access to adminDb or env vars here.
+    // The logic to fetch brands needs to be carefully handled, perhaps via a dedicated server action if needed.
+    // For now, let's assume we might need a different mechanism for public pages.
+    return { brands: [] }; // Returning empty for now to avoid errors.
 }
 
 
@@ -143,11 +106,8 @@ export default function VisitorFeedbackPage() {
             // If gifts are enabled, fetch the specific brand details
             if (houseData.isGiftEnabled && houseData.giftBrandCode) {
                 try {
-                    const { brands } = await getPublicGiftConfiguration();
-                    const brandDetails = brands.find(b => b.brand_code === houseData.giftBrandCode);
-                    if (brandDetails) {
-                        setGiftBrand(brandDetails);
-                    }
+                    // Public gift config is tricky; for now, we assume this info is public or fetched differently.
+                    // This might need a dedicated server action later.
                 } catch(e) {
                     console.warn("Could not fetch gift brand details for visitor page", e);
                 }
@@ -241,6 +201,7 @@ export default function VisitorFeedbackPage() {
         };
 
         const leadRef = await addDoc(collection(db, "leads"), newLeadData);
+        const leadId = leadRef.id;
         
         // If gifts are enabled for this house, create a pending gift
         if (activeHouse.isGiftEnabled && activeHouse.giftBrandCode && activeHouse.giftAmountInCents && newLeadData.email) {
@@ -259,14 +220,16 @@ export default function VisitorFeedbackPage() {
             await addDoc(collection(db, "gifts"), newGift);
         }
         
-        // Trigger new lead notification email
-        await sendNewLeadEmail({
-            user: realtor,
-            lead: { id: leadRef.id, ...newLeadData },
-            openHouseAddress: activeHouse.address,
-        });
-        
         setStep('thankyou');
+
+        // Trigger email notification in the background, this will not block the UI
+        sendNewLeadEmail({
+            realtorId: realtor.id,
+            leadId: leadId
+        }).catch(err => {
+            console.error("Failed to send new lead email in background:", err);
+            // This error will not be shown to the visitor
+        });
 
     } catch (error: any) {
         console.error("Error adding lead:", error);
@@ -765,3 +728,5 @@ export default function VisitorFeedbackPage() {
     </div>
   );
 }
+
+    

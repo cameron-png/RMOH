@@ -309,7 +309,7 @@ export async function sendGiftEmail(params: SendGiftEmailParams) {
     }
 }
 
-export async function sendNewLeadEmail(params: NewLeadEmailParams) {
+export async function _sendNewLeadEmail(params: NewLeadEmailParams) {
     if (!transporter) {
         console.warn("SMTP not configured. Skipping new lead email.");
         return;
@@ -346,3 +346,5 @@ export async function sendLowBalanceEmail(params: LowBalanceEmailParams) {
         console.error("Error sending low balance email:", error);
     }
 }
+
+    
