@@ -5,7 +5,7 @@ import { doc, getDoc, deleteDoc, Timestamp, collection, query, where, getDocs, a
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/use-auth';
-import { Lead as LeadType, OpenHouse, FeedbackForm, FeedbackSubmission, UserProfile, Address } from '@/lib/types';
+import { Lead as LeadType, OpenHouse, FeedbackForm, FeedbackSubmission, UserProfile, Address, GiftbitBrand } from '@/lib/types';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -30,6 +30,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getGiftConfigurationForUser } from '../../gifts/actions';
 
 const addressFormSchema = z.object({
   streetNumber: z.string().min(1, "Street number is required."),
@@ -38,6 +39,20 @@ const addressFormSchema = z.object({
   city: z.string().min(1, "City is required."),
   state: z.string().min(2, "State is required.").max(2, "Use 2-letter abbreviation."),
   zipCode: z.string().min(5, "Zip code must be 5 digits.").max(5, "Zip code must be 5 digits."),
+});
+
+const giftAutomationSchema = z.object({
+    isGiftEnabled: z.boolean(),
+    giftBrandCode: z.string().optional(),
+    giftAmount: z.string().optional(),
+}).refine(data => {
+    if (data.isGiftEnabled) {
+        return !!data.giftBrandCode && !!data.giftAmount;
+    }
+    return true;
+}, {
+    message: "Brand and amount are required when gifts are enabled.",
+    path: ["giftBrandCode"], // Attach error to a field
 });
 
 
@@ -62,6 +77,10 @@ export default function OpenHouseDetailPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isDeleteImageDialogOpen, setIsDeleteImageDialogOpen] = useState(false);
+
+  const [brands, setBrands] = useState<GiftbitBrand[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(true);
+  const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
   
 
   const id = params.id as string;
@@ -76,6 +95,15 @@ export default function OpenHouseDetailPage() {
       state: '',
       zipCode: ''
     }
+  });
+
+   const giftAutomationForm = useForm<z.infer<typeof giftAutomationSchema>>({
+    resolver: zodResolver(giftAutomationSchema),
+    defaultValues: {
+      isGiftEnabled: false,
+      giftBrandCode: '',
+      giftAmount: '',
+    },
   });
 
 
@@ -167,6 +195,30 @@ export default function OpenHouseDetailPage() {
       }
     }
   }, [openHouse, addressForm]);
+
+  useEffect(() => {
+    if (user?.region) {
+      setLoadingBrands(true);
+      getGiftConfigurationForUser(user.region)
+        .then(({ brands }) => setBrands(brands))
+        .catch(() => toast({ variant: 'destructive', title: 'Error', description: 'Could not load gift brands.' }))
+        .finally(() => setLoadingBrands(false));
+    }
+  }, [user?.region, toast]);
+
+  useEffect(() => {
+    if (openHouse && brands.length > 0) {
+      giftAutomationForm.reset({
+        isGiftEnabled: openHouse.isGiftEnabled || false,
+        giftBrandCode: openHouse.giftBrandCode || '',
+        giftAmount: openHouse.giftAmountInCents ? (openHouse.giftAmountInCents / 100).toString() : '',
+      });
+      if (openHouse.giftBrandCode) {
+        const brand = brands.find(b => b.brand_code === openHouse.giftBrandCode);
+        setSelectedBrand(brand || null);
+      }
+    }
+  }, [openHouse, brands, giftAutomationForm]);
 
 
   const handleSetForm = async (houseId: string, formId: string) => {
@@ -296,6 +348,47 @@ export default function OpenHouseDetailPage() {
       setIsDeleteImageDialogOpen(false);
     }
   };
+  
+    const onGiftAutomationSubmit = async (data: z.infer<typeof giftAutomationSchema>) => {
+        if (!openHouse) return;
+
+        let amountInCents: number | undefined = undefined;
+        if (data.isGiftEnabled && data.giftAmount) {
+            amountInCents = Math.round(parseFloat(data.giftAmount) * 100);
+        }
+
+        const houseDocRef = doc(db, 'openHouses', openHouse.id);
+        try {
+            await updateDoc(houseDocRef, {
+                isGiftEnabled: data.isGiftEnabled,
+                giftBrandCode: data.isGiftEnabled ? data.giftBrandCode : null,
+                giftAmountInCents: data.isGiftEnabled ? amountInCents : null,
+            });
+            await fetchOpenHouseData();
+            toast({ title: 'Gift settings updated successfully!' });
+        } catch (error) {
+            console.error("Error updating gift settings:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not save gift settings.' });
+        }
+    };
+
+    const handleBrandChange = (brandCode: string) => {
+        const brand = brands.find(b => b.brand_code === brandCode);
+        setSelectedBrand(brand || null);
+        giftAutomationForm.setValue('giftBrandCode', brandCode, { shouldDirty: true });
+        giftAutomationForm.setValue('giftAmount', '', { shouldDirty: true }); // Reset amount on brand change
+    };
+
+    const getAmountDescription = () => {
+        if (!selectedBrand) return "Select a brand to see amount requirements.";
+        if (selectedBrand.denominations_in_cents?.length) {
+            return `Allowed amounts: ${selectedBrand.denominations_in_cents.map(d => `$${(d / 100).toFixed(2)}`).join(', ')}`;
+        }
+        if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
+            return `Amount must be between $${(selectedBrand.min_price_in_cents / 100).toFixed(2)} and $${(selectedBrand.max_price_in_cents / 100).toFixed(2)}.`;
+        }
+        return null;
+    };
   
   if (loading || authLoading) return <p className="text-muted-foreground">Loading details...</p>;
   if (error) return <p className="text-destructive">{error}</p>;
@@ -453,7 +546,7 @@ export default function OpenHouseDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-1">
+      <div className="grid gap-6 md:grid-cols-2">
         <Card>
             <CardHeader>
             <CardTitle>Feedback Form</CardTitle>
@@ -470,6 +563,80 @@ export default function OpenHouseDetailPage() {
             </div>
             </CardContent>
         </Card>
+        <Form {...giftAutomationForm}>
+            <form onSubmit={giftAutomationForm.handleSubmit(onGiftAutomationSubmit)}>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Gift Automation</CardTitle>
+                        <CardDescription>Automatically create a draft gift for every lead who submits feedback.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField
+                            control={giftAutomationForm.control}
+                            name="isGiftEnabled"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">Enable Gifts for New Leads</FormLabel>
+                                        <FormDescription>
+                                            A new gift will be queued for your approval in the Gift Log.
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        {giftAutomationForm.watch('isGiftEnabled') && (
+                            <div className="space-y-4">
+                                <FormField
+                                    control={giftAutomationForm.control}
+                                    name="giftBrandCode"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Gift Card Brand</FormLabel>
+                                            <Select onValueChange={handleBrandChange} value={field.value} disabled={loadingBrands}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder={loadingBrands ? "Loading..." : "Select a brand"} />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {brands.map(brand => (
+                                                        <SelectItem key={brand.brand_code} value={brand.brand_code}>{brand.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={giftAutomationForm.control}
+                                    name="giftAmount"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Amount ($)</FormLabel>
+                                            <FormControl><Input type="number" placeholder="e.g., 25.00" {...field} disabled={!selectedBrand} /></FormControl>
+                                            <FormDescription>{getAmountDescription()}</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <Button type="submit" disabled={giftAutomationForm.formState.isSubmitting}>
+                           {giftAutomationForm.formState.isSubmitting ? "Saving..." : "Save Gift Settings"}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </form>
+        </Form>
       </div>
       
       <Separator />

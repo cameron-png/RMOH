@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -169,8 +170,8 @@ export default function VisitorFeedbackPage() {
         const lowerCaseEmail = data.email?.toLowerCase();
         const rawPhone = data.phone?.replace(/\D/g, '');
         
-        const newLeadData = {
-            ...data,
+        const newLeadData: Omit<Lead, 'id'> = {
+            name: data.name,
             email: lowerCaseEmail,
             phone: rawPhone,
             userId: activeHouse.userId,
@@ -181,6 +182,23 @@ export default function VisitorFeedbackPage() {
         };
 
         const leadRef = await addDoc(collection(db, "leads"), newLeadData);
+        
+        // If gifts are enabled for this house, create a pending gift
+        if (activeHouse.isGiftEnabled && activeHouse.giftBrandCode && activeHouse.giftAmountInCents && newLeadData.email) {
+            const newGift: Omit<any, 'id'> = {
+                userId: activeHouse.userId,
+                openHouseId: activeHouse.id,
+                recipientName: newLeadData.name,
+                recipientEmail: newLeadData.email,
+                brandCode: activeHouse.giftBrandCode,
+                amountInCents: activeHouse.giftAmountInCents,
+                type: 'Auto',
+                status: 'Pending',
+                claimUrl: null,
+                createdAt: Timestamp.now(),
+            };
+            await addDoc(collection(db, "gifts"), newGift);
+        }
         
         // Trigger new lead notification email
         await sendNewLeadEmail({

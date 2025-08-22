@@ -19,6 +19,9 @@ export interface OpenHouse {
     imageUrl?: string;
     isActive?: boolean;
     feedbackFormId?: string;
+    isGiftEnabled?: boolean;
+    giftBrandCode?: string;
+    giftAmountInCents?: number;
 }
 
 export interface Lead {
@@ -100,10 +103,11 @@ export interface Gift {
     recipientEmail: string;
     brandCode: string;
     amountInCents: number;
-    type: string;
+    type: 'Manual' | 'Auto';
     status: 'Pending' | 'Sent' | 'Failed' | 'Cancelled';
     claimUrl: string | null;
     createdAt: Timestamp;
+    openHouseId?: string; // Optional link to the open house
 }
 
 export interface GiftbitSettings {

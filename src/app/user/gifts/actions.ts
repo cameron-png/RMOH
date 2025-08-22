@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { Gift, UserProfile, GiftbitBrand, GiftbitRegion, AppSettings } from '@/lib/types';
+import { Gift, UserProfile, GiftbitBrand, GiftbitRegion, AppSettings, OpenHouse } from '@/lib/types';
 import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -102,6 +102,15 @@ export async function processGift(giftId: string) {
         if ((user.availableBalance || 0) < gift.amountInCents) {
             throw new Error('Insufficient funds.');
         }
+        
+        let openHouseAddress: string | undefined = undefined;
+        if (gift.openHouseId) {
+            const houseDoc = await adminDb.collection('openHouses').doc(gift.openHouseId).get();
+            if (houseDoc.exists) {
+                openHouseAddress = (houseDoc.data() as OpenHouse).address;
+            }
+        }
+
 
         // 1. Create the direct link order
         const orderResponse = await createDirectLink(gift);
@@ -131,6 +140,7 @@ export async function processGift(giftId: string) {
             ...gift,
             claimUrl: claimUrl,
             sender: user,
+            openHouseAddress: openHouseAddress,
         });
         
         // 5. Check for low balance and send notification if needed
@@ -146,4 +156,25 @@ export async function processGift(giftId: string) {
     }
 }
 
-    
+
+export async function confirmPendingGift(giftId: string): Promise<{ success: boolean, message?: string }> {
+  try {
+    // We don't need to check balance here, `processGift` does it securely.
+    await processGift(giftId);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Error confirming gift ${giftId}:`, error);
+    return { success: false, message: error.message || 'An unexpected error occurred.' };
+  }
+}
+
+export async function declinePendingGift(giftId: string): Promise<{ success: boolean, message?: string }> {
+  try {
+    const giftRef = adminDb.collection('gifts').doc(giftId);
+    await giftRef.update({ status: 'Cancelled' });
+    return { success: true };
+  } catch (error: any)_ {
+    console.error(`Error declining gift ${giftId}:`, error);
+    return { success: false, message: 'Failed to decline the gift.' };
+  }
+}

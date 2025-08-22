@@ -3,26 +3,26 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Gift, GiftbitBrand } from '@/lib/types';
+import { Gift, GiftbitBrand, OpenHouse } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format } from 'date-fns';
 import Link from 'next/link';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink } from 'lucide-react';
+import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink, ThumbsUp, ThumbsDown, Home } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { processGift, getGiftConfigurationForUser } from './actions';
+import { getGiftConfigurationForUser, confirmPendingGift, declinePendingGift } from './actions';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const giftFormSchema = z.object({
@@ -37,12 +37,19 @@ export default function GiftsPage() {
   const { user, availableBalance, refreshUserData } = useAuth();
   const { toast } = useToast();
   const [gifts, setGifts] = useState<Gift[]>([]);
+  const [openHouses, setOpenHouses] = useState<Map<string, OpenHouse>>(new Map());
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
+
+  const [giftToConfirm, setGiftToConfirm] = useState<Gift | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const [giftToDecline, setGiftToDecline] = useState<Gift | null>(null);
+  const [isDeclining, setIsDeclining] = useState(false);
 
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
@@ -78,19 +85,30 @@ export default function GiftsPage() {
     return null;
   }
 
-  const fetchGifts = useCallback(() => {
+  const fetchGiftsAndHouses = useCallback(() => {
     if (!user) return;
 
     setLoading(true);
-    const q = query(
+    const giftsQuery = query(
         collection(db, 'gifts'), 
         where('userId', '==', user.uid),
         orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const giftsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
+    const unsubscribe = onSnapshot(giftsQuery, async (giftsSnapshot) => {
+        const giftsData = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
         setGifts(giftsData);
+
+        // Fetch associated open houses
+        const houseIds = [...new Set(giftsData.map(g => g.openHouseId).filter(Boolean))];
+        if (houseIds.length > 0) {
+            const housesQuery = query(collection(db, 'openHouses'), where('userId', '==', user.uid));
+            const housesSnapshot = await onSnapshot(housesQuery, (snapshot) => {
+              const housesMap = new Map<string, OpenHouse>();
+              snapshot.forEach(doc => housesMap.set(doc.id, { id: doc.id, ...doc.data()} as OpenHouse));
+              setOpenHouses(housesMap);
+            });
+        }
         setLoading(false);
     }, (error) => {
         console.error("Error fetching gifts:", error);
@@ -101,11 +119,10 @@ export default function GiftsPage() {
   }, [user]);
 
   useEffect(() => {
-    const unsubscribe = fetchGifts();
+    const unsubscribe = fetchGiftsAndHouses();
     return () => unsubscribe?.();
-  }, [fetchGifts]);
+  }, [fetchGiftsAndHouses]);
 
-  // Fetch brands when the page loads, not just when dialog opens
   useEffect(() => {
     async function loadConfiguration() {
       if (!user?.region) return;
@@ -180,7 +197,7 @@ export default function GiftsPage() {
     }
 
     try {
-        const newGiftData = {
+        const newGiftData: Omit<Gift, 'id'> = {
             userId: user.uid,
             recipientName: values.recipientName,
             recipientEmail: values.recipientEmail,
@@ -201,11 +218,9 @@ export default function GiftsPage() {
         setIsFormOpen(false);
         form.reset();
         setSelectedBrand(null);
-
-        // Trigger background processing
-        await processGift(docRef.id);
         
-        // Refresh user data to reflect new balance
+        await confirmPendingGift(docRef.id);
+        
         await refreshUserData();
 
     } catch (error: any) {
@@ -216,6 +231,46 @@ export default function GiftsPage() {
         });
     }
   }
+
+  const handleConfirmGift = async () => {
+    if (!giftToConfirm) return;
+
+    if ((availableBalance || 0) < giftToConfirm.amountInCents) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Funds",
+        description: `You need ${formatCurrency(giftToConfirm.amountInCents)} but only have ${formatCurrency(availableBalance || 0)}.`,
+      });
+      setGiftToConfirm(null);
+      return;
+    }
+
+    setIsConfirming(true);
+    try {
+      await confirmPendingGift(giftToConfirm.id);
+      toast({ title: 'Gift Confirmed', description: 'The gift is being sent to the recipient.' });
+      await refreshUserData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Confirmation Failed', description: error.message });
+    } finally {
+      setIsConfirming(false);
+      setGiftToConfirm(null);
+    }
+  };
+
+  const handleDeclineGift = async () => {
+    if (!giftToDecline) return;
+    setIsDeclining(true);
+    try {
+      await declinePendingGift(giftToDecline.id);
+      toast({ title: 'Gift Declined', description: 'The pending gift has been cancelled.' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Decline Failed', description: error.message });
+    } finally {
+      setIsDeclining(false);
+      setGiftToDecline(null);
+    }
+  };
   
   if (!user?.region) {
     return (
@@ -366,7 +421,9 @@ export default function GiftsPage() {
                     <>
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-4">
-                        {gifts.map((gift) => (
+                        {gifts.map((gift) => {
+                            const house = openHouses.get(gift.openHouseId || '');
+                            return (
                             <Card key={gift.id}>
                                 <CardHeader>
                                     <CardTitle className="text-base">{gift.recipientName}</CardTitle>
@@ -381,15 +438,28 @@ export default function GiftsPage() {
                                         <span className="text-muted-foreground">Brand:</span>
                                         <span className="font-medium">{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
                                     </div>
+                                    {house && (
+                                        <div className="flex justify-between items-center text-muted-foreground">
+                                          <Link href={`/user/open-house/${house.id}`} className="flex items-center gap-2 hover:underline">
+                                            <Home className="w-4 h-4" />
+                                            <span className="truncate">{house.address}</span>
+                                          </Link>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between items-center">
                                         <span className="text-muted-foreground">Status:</span>
-                                        <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                        <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : gift.status === 'Pending' ? 'secondary' : 'outline'}>
                                             {gift.status}
                                         </Badge>
                                     </div>
                                 </CardContent>
-                                <CardFooter>
-                                    {gift.claimUrl ? (
+                                <CardFooter className="flex gap-2">
+                                     {gift.status === 'Pending' ? (
+                                        <>
+                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => setGiftToDecline(gift)}><ThumbsDown/>Decline</Button>
+                                            <Button size="sm" className="flex-1" onClick={() => setGiftToConfirm(gift)}><ThumbsUp/>Confirm</Button>
+                                        </>
+                                     ) : gift.claimUrl ? (
                                         <Button variant="outline" size="sm" asChild className="w-full">
                                             <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer">
                                                 <ExternalLink className="mr-2 h-4 w-4" /> Open Gift
@@ -402,7 +472,7 @@ export default function GiftsPage() {
                                     )}
                                 </CardFooter>
                             </Card>
-                        ))}
+                        )})}
                     </div>
                     
                     {/* Desktop Table View */}
@@ -413,10 +483,11 @@ export default function GiftsPage() {
                                     <TableHead>Recipient</TableHead>
                                     <TableHead>Amount</TableHead>
                                     <TableHead>Brand</TableHead>
+                                    <TableHead>Open House</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">
                                         <div className="flex items-center justify-end gap-1">
-                                            <span>Link</span>
+                                            <span>Link / Actions</span>
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -434,7 +505,9 @@ export default function GiftsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {gifts.map((gift) => (
+                                {gifts.map((gift) => {
+                                 const house = openHouses.get(gift.openHouseId || '');
+                                 return (
                                 <TableRow key={gift.id}>
                                     <TableCell>
                                         <div>{gift.recipientName}</div>
@@ -448,13 +521,27 @@ export default function GiftsPage() {
                                             <span>-</span>
                                         )}
                                     </TableCell>
+                                     <TableCell>
+                                        {house ? (
+                                             <Link href={`/user/open-house/${house.id}`} className="hover:underline text-xs truncate block max-w-[200px]">
+                                                {house.address}
+                                             </Link>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell>
-                                        <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : 'secondary'}>
+                                        <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : gift.status === 'Pending' ? 'secondary' : 'outline'}>
                                             {gift.status}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {gift.claimUrl ? (
+                                        {gift.status === 'Pending' ? (
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => setGiftToDecline(gift)}><ThumbsDown/>Decline</Button>
+                                                <Button size="sm" onClick={() => setGiftToConfirm(gift)}><ThumbsUp/>Confirm</Button>
+                                            </div>
+                                        ) : gift.claimUrl ? (
                                             <Button variant="ghost" size="icon" asChild>
                                                 <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer" aria-label="Open Gift Link">
                                                     <ExternalLink />
@@ -465,7 +552,7 @@ export default function GiftsPage() {
                                         )}
                                     </TableCell>
                                 </TableRow>
-                                ))}
+                                )})}
                             </TableBody>
                         </Table>
                     </div>
@@ -482,6 +569,41 @@ export default function GiftsPage() {
             </CardContent>
         </Card>
     </div>
+    
+    <AlertDialog open={!!giftToConfirm} onOpenChange={(open) => !open && setGiftToConfirm(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Gift?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will send a {giftToConfirm ? formatCurrency(giftToConfirm.amountInCents) : ''} gift to {giftToConfirm?.recipientName} and deduct the cost from your balance.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setGiftToConfirm(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmGift} disabled={isConfirming}>
+                    {isConfirming ? "Confirming..." : "Yes, Send Gift"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!giftToDecline} onOpenChange={(open) => !open && setGiftToDecline(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Decline Gift?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will cancel the pending gift for {giftToDecline?.recipientName}. This cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setGiftToDecline(null)}>Back</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeclineGift} disabled={isDeclining} className="bg-destructive hover:bg-destructive/90">
+                    {isDeclining ? "Declining..." : "Yes, Decline"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
     </>
   );
 }

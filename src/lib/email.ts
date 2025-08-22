@@ -103,7 +103,9 @@ function generateFooterHtml(): string {
 
 function generateGiftEmailHtml({ recipientName, sender, message, brandCode, amountInCents, claimUrl, openHouseAddress }: SendGiftEmailParams): string {
   const amountDollars = (amountInCents / 100).toFixed(2);
-  const brandName = brandCode.charAt(0).toUpperCase() + brandCode.slice(1).replace(/([A-Z])/g, ' $1').trim();
+  // A simple way to format brand code to brand name, this might need improvement
+  const brandName = brandCode.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
   const greetingMessage = openHouseAddress 
     ? `Thank you for visiting the open house at <strong>${openHouseAddress}</strong>! As a token of our appreciation, ${sender.name} has sent you a <strong>$${amountDollars} ${brandName} gift card</strong>.`
     : `${sender.name} has sent you a <strong>$${amountDollars} ${brandName} gift card</strong>.`;
