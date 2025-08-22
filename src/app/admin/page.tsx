@@ -588,7 +588,7 @@ export default function AdminPage() {
                         <ScrollArea className="h-[500px] border rounded-lg p-4">
                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {allBrands
-                                    .filter(brand => Array.isArray(brand.region_codes) && brand.region_codes.some(code => enabledRegionCodes.includes(code)))
+                                    .filter(brand => brand.region_codes?.some(code => enabledRegionCodes.includes(code)))
                                     .sort((a,b) => a.name.localeCompare(b.name))
                                     .map(brand => (
                                     <div key={brand.brand_code} className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50">
