@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink, ThumbsUp, ThumbsDown, Home } from 'lucide-react';
+import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink, ThumbsUp, ThumbsDown, Home, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -51,6 +51,9 @@ export default function GiftsPage() {
 
   const [giftToDecline, setGiftToDecline] = useState<Gift | null>(null);
   const [isDeclining, setIsDeclining] = useState(false);
+  
+  const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
+  const [giftDataToCreate, setGiftDataToCreate] = useState<z.infer<typeof giftFormSchema> | null>(null);
 
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
@@ -171,14 +174,6 @@ export default function GiftsPage() {
   };
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
-    if (!user) {
-        toast({
-            variant: 'destructive',
-            title: 'Authentication Error',
-            description: 'You must be logged in to create a gift.',
-        });
-        return;
-    }
     const amountInCents = Math.round(parseFloat(values.amount) * 100);
 
     // Dynamic validation check
@@ -205,13 +200,20 @@ export default function GiftsPage() {
         return;
     }
 
+    setGiftDataToCreate(values);
+    setIsCreateConfirmOpen(true);
+  }
+  
+  const handleConfirmCreateGift = async () => {
+    if (!user || !giftDataToCreate) return;
+    
     try {
         const newGiftData: Omit<Gift, 'id'> = {
             userId: user.uid,
-            recipientName: values.recipientName,
-            recipientEmail: values.recipientEmail,
-            brandCode: values.brand,
-            amountInCents: amountInCents,
+            recipientName: giftDataToCreate.recipientName,
+            recipientEmail: giftDataToCreate.recipientEmail,
+            brandCode: giftDataToCreate.brand,
+            amountInCents: Math.round(parseFloat(giftDataToCreate.amount) * 100),
             type: 'Manual',
             status: 'Pending' as const,
             claimUrl: null,
@@ -221,15 +223,16 @@ export default function GiftsPage() {
         const docRef = await addDoc(collection(db, "gifts"), newGiftData);
 
         toast({
-            title: 'Gift Created',
+            title: 'Gift Queued',
             description: 'Your gift is being processed and will appear in the log.',
         });
+        
         setIsFormOpen(false);
         form.reset();
         setSelectedBrand(null);
         
+        // Directly process the gift
         await confirmPendingGift(docRef.id);
-        
         await refreshUserData();
 
     } catch (error: any) {
@@ -238,8 +241,12 @@ export default function GiftsPage() {
             title: 'Error',
             description: 'Could not create the gift. Please try again.',
         });
+    } finally {
+        setIsCreateConfirmOpen(false);
+        setGiftDataToCreate(null);
     }
   }
+
 
   const handleConfirmGift = async () => {
     if (!giftToConfirm) return;
@@ -408,7 +415,8 @@ export default function GiftsPage() {
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={form.formState.isSubmitting}>
-                                    {form.formState.isSubmitting ? 'Creating...' : 'Create Gift'}
+                                     <Send className="mr-2 h-4 w-4" />
+                                    {form.formState.isSubmitting ? 'Sending...' : 'Send Gift'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -580,13 +588,30 @@ export default function GiftsPage() {
             </CardContent>
         </Card>
     </div>
+
+    <AlertDialog open={isCreateConfirmOpen} onOpenChange={setIsCreateConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Confirm New Gift</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will send a {giftDataToCreate ? formatCurrency(Math.round(parseFloat(giftDataToCreate.amount) * 100)) : ''} gift to {giftDataToCreate?.recipientName} and deduct the cost from your account balance.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setIsCreateConfirmOpen(false)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmCreateGift} disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? "Sending..." : "Yes, Send Gift"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     
     <AlertDialog open={!!giftToConfirm} onOpenChange={(open) => !open && setGiftToConfirm(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Confirm Gift?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will send a {giftToConfirm ? formatCurrency(giftToConfirm.amountInCents) : ''} gift to {giftToConfirm?.recipientName} and deduct the cost from your balance.
+                    This will send a {giftToConfirm ? formatCurrency(giftToConfirm.amountInCents) : ''} gift to {giftToConfirm?.recipientName} and deduct the cost from your balance. This action cannot be undone.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -618,3 +643,5 @@ export default function GiftsPage() {
     </>
   );
 }
+
+    
