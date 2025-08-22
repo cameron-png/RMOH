@@ -464,5 +464,3 @@ export default function GiftsPage() {
     </>
   );
 }
-
-    

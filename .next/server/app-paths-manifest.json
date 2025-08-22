@@ -1,22 +1,5 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/auth/login/route": "app/api/auth/login/route.js",
-  "/api/auth/logout/route": "app/api/auth/logout/route.js",
-  "/api/test/route": "app/api/test/route.js",
-  "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/forgot-password/page": "app/forgot-password/page.js",
   "/page": "app/page.js",
-  "/signup/page": "app/signup/page.js",
-  "/signup/profile/page": "app/signup/profile/page.js",
-  "/v/[userId]/page": "app/v/[userId]/page.js",
-  "/admin/page": "app/admin/page.js",
   "/user/dashboard/page": "app/user/dashboard/page.js",
-  "/user/billing/page": "app/user/billing/page.js",
-  "/user/feedback-forms/page": "app/user/feedback-forms/page.js",
-  "/user/my-leads/page": "app/user/my-leads/page.js",
-  "/user/my-qr-code/page": "app/user/my-qr-code/page.js",
-  "/user/open-house/[id]/feedback/page": "app/user/open-house/[id]/feedback/page.js",
-  "/user/open-house/[id]/page": "app/user/open-house/[id]/page.js",
-  "/user/profile/page": "app/user/profile/page.js",
   "/user/gifts/page": "app/user/gifts/page.js"
 }
