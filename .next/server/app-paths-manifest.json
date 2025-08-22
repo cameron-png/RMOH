@@ -3,5 +3,6 @@
   "/user/dashboard/page": "app/user/dashboard/page.js",
   "/user/gifts/page": "app/user/gifts/page.js",
   "/user/billing/page": "app/user/billing/page.js",
-  "/user/open-house/[id]/page": "app/user/open-house/[id]/page.js"
+  "/user/open-house/[id]/page": "app/user/open-house/[id]/page.js",
+  "/admin/page": "app/admin/page.js"
 }
