@@ -1,63 +1,68 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny all
-    match /{document=**} {
-      allow read, write: if false;
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Allow users to read/write their own user document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users Collection
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      // Allow public read for visitor pages
+      allow get: if true;
+      // Users can only read and write their own profile
+      allow list, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Settings Collection
+    match /settings/appDefaults {
+      // Allow logged-in users to read app default settings
+      allow get: if isAuthenticated();
+      // Only admins should write to app settings
+      allow write: if isAuthenticated() && request.auth.token.isAdmin == true;
     }
 
-    // Allow admins to read/write all user documents
-    match /users/{userId} {
-      allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // Open Houses: Users can manage their own, admins can manage any.
+    // OpenHouses Collection
     match /openHouses/{houseId} {
-      allow read, create: if request.auth.uid == request.resource.data.userId;
-      allow update, delete: if request.auth.uid == resource.data.userId
-                          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      // Allow public read for visitor page
+      allow get: if true;
+      // Only the owner can read their list of houses and write to them
+      allow list, write: if isAuthenticated() && isOwner(request.resource.data.userId);
     }
 
-    // Leads: Users can manage their own, admins can read any.
-    match /leads/{leadId} {
-        allow read, create, update: if request.auth.uid == resource.data.userId
-                                || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-        allow read, update, delete: if request.auth.uid == resource.data.userId
-                                || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // Feedback Forms:
-    // Anyone can read global forms
-    // Users can create/manage their own custom forms
-    // Admins can manage any form
+    // FeedbackForms Collection
     match /feedbackForms/{formId} {
-        allow read: if resource.data.type == 'global';
-        allow read, create, update, delete: if (resource.data.type == 'custom' && request.auth.uid == resource.data.userId)
-                                            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-        allow create: if request.resource.data.type == 'custom' && request.auth.uid == request.resource.data.userId;
+      // Allow any authenticated user to read global forms
+      allow get: if isAuthenticated() && resource.data.type == 'global';
+      // Custom forms can only be read/written by their owner
+      allow get, list, write: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // Feedback Submissions:
-    // Users can create them for any open house (linked via QR code)
-    // Users can read submissions linked to their own open houses
-    // Admins can read any submission
-    match /feedbackSubmissions/{submissionId} {
-        allow create: if request.auth == null; // Allow anonymous creation from the public visitor page
-        allow read: if get(/databases/$(database)/documents/openHouses/$(resource.data.openHouseId)).data.userId == request.auth.uid
-                    || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    // Leads & FeedbackSubmissions
+    match /{path=**}/leads/{leadId} {
+      // Only the owner of the record can read/write
+      allow read, write: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+
+    match /{path=**}/feedbackSubmissions/{submissionId} {
+      // Allow anyone to create feedback
+      allow create: if true;
+      // Only owner can read
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      // No updates or deletes allowed
+      allow update, delete: if false;
     }
     
-    // Settings: only admins can read or write app settings.
-    match /settings/{settingId} {
-      allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
+    // Gifts Collection
+     match /gifts/{giftId} {
+        // Users can only read/write their own gifts
+        allow read, write: if isAuthenticated() && isOwner(request.resource.data.userId);
+     }
   }
 }
