@@ -1,6 +1,3 @@
-
-'use server';
-
 import { initializeApp, getApps, getApp, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
@@ -12,6 +9,8 @@ function getServiceAccount(): ServiceAccount | undefined {
     const projectId = process.env.FIREBASE_PROJECT_ID;
 
     if (!privateKey || !clientEmail || !projectId) {
+        // In a deployed Google Cloud environment, these are often not needed.
+        // The SDK can automatically detect the service account.
         return undefined;
     }
 
