@@ -3,48 +3,53 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read/write their own profile
+    
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users can read/update their own profile, admins can read any.
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.token.isAdmin == true;
     }
 
-    // OpenHouses can be read by anyone, but only created, updated, or deleted by the owner
-    match /openHouses/{houseId} {
-        allow get: if true;
-        allow list, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    // Settings can only be read by authenticated users and modified by admins.
+    match /settings/appDefaults {
+      allow get: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.isAdmin == true;
     }
-    
+
+    // Feedback forms can be read by anyone authenticated, written only by custom owners or admins.
     match /feedbackForms/{formId} {
-        // Allow authenticated users to read global forms
-        allow get: if request.auth != null && resource.data.type == 'global';
-        // Allow users to list their own custom forms, and all global forms
-        allow list: if request.auth != null;
-        // Allow users to CRUD their own custom forms
-        allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow read: if request.auth != null;
+        allow create, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || request.auth.token.isAdmin == true);
     }
-
-    match /feedbackSubmissions/{submissionId} {
-        // Allow creation by anyone (visitors)
-        allow create: if true;
-        // Only the user who owns the open house can read/update/delete submissions
-        allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/openHouses/$(request.resource.data.openHouseId)).data.userId == request.auth.uid;
+    
+    // Users can read and write to their own open houses. Admins can read all.
+    match /openHouses/{houseId} {
+      allow read, create, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || (request.resource.data.userId == request.auth.uid));
+      allow read: if request.auth != null && request.auth.token.isAdmin == true;
     }
-
+    
+    // Users can read and write to their own leads. Admins can read all.
     match /leads/{leadId} {
-        allow create: if true;
-        allow read, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+       allow read, create, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || (request.resource.data.userId == request.auth.uid));
+       allow read: if request.auth != null && request.auth.token.isAdmin == true;
+    }
+
+    // Users can read and write to their own feedback submissions. Admins can read all.
+    match /feedbackSubmissions/{submissionId} {
+       allow read, create, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || (request.resource.data.userId == request.auth.uid));
+       allow read: if request.auth != null && request.auth.token.isAdmin == true;
     }
     
-    // Gifts can only be managed by the user who created them
+     // Users can read and write to their own gifts. Admins can read all.
     match /gifts/{giftId} {
-        allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+       allow read, create, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || (request.resource.data.userId == request.auth.uid));
+       allow read: if request.auth != null && request.auth.token.isAdmin == true;
     }
-    
-    // Settings are only writable only by admins, but appDefaults are readable by any authenticated user
-    match /settings/{docId} {
-        allow get: if request.auth != null && docId == 'appDefaults';
-        allow list, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
+
   }
 }
