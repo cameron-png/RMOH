@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitRegion, GiftbitBrand, GiftbitSettings } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2 } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -331,7 +331,43 @@ export default function AdminPage() {
               {loading ? (
                 <p>Loading users...</p>
               ) : (
-                <div className="border rounded-lg overflow-x-auto">
+                <>
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                    {filteredUsers.length > 0 ? filteredUsers.map(user => (
+                        <Card key={user.id}>
+                            <CardHeader>
+                                <div className="flex items-center gap-4">
+                                     <Avatar>
+                                        <AvatarImage src={user.photoURL || ''} alt={user.name || 'avatar'} data-ai-hint="person avatar"/>
+                                        <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle className="text-base">{user.name}</CardTitle>
+                                        <CardDescription>{user.email}</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                               <div className="flex justify-between">
+                                   <span className="text-muted-foreground flex items-center gap-1"><UserIcon className="w-4 h-4"/> Role:</span>
+                                   {user.isAdmin ? <Badge>Admin</Badge> : <Badge variant="secondary">User</Badge>}
+                               </div>
+                                <div className="flex justify-between">
+                                   <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="w-4 h-4"/> Balance:</span>
+                                   <span className="font-medium">{formatBalance(user.availableBalance)}</span>
+                               </div>
+                            </CardContent>
+                        </Card>
+                    )) : (
+                        <div className="h-24 text-center flex items-center justify-center">
+                            <p>No users found.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="border rounded-lg hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -377,6 +413,7 @@ export default function AdminPage() {
                     </TableBody>
                   </Table>
                 </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -403,13 +440,63 @@ export default function AdminPage() {
               {loading ? (
                 <p>Loading open houses...</p>
               ) : (
-                <div className="border rounded-lg overflow-x-auto">
+                 <>
+                {/* Mobile Card View */}
+                 <div className="md:hidden space-y-4">
+                    {filteredHouses.length > 0 ? filteredHouses.map(house => (
+                        <Card key={house.id}>
+                            <CardHeader>
+                                <div className="flex items-start gap-4">
+                                     <Link href={`/user/open-house/${house.id}`}>
+                                        <div className="w-24 h-16 relative rounded-md overflow-hidden border flex-shrink-0 bg-muted">
+                                            {house.imageUrl ? (
+                                                <Image 
+                                                    src={house.imageUrl}
+                                                    alt={`Image of ${house.address}`}
+                                                    fill
+                                                    className="object-cover"
+                                                    data-ai-hint="house exterior"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <Home className="w-8 h-8 text-muted-foreground"/>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Link>
+                                    <div className="flex-grow">
+                                        <CardTitle className="text-base leading-tight">
+                                           <Link href={`/user/open-house/${house.id}`} className="hover:underline">
+                                                {house.address}
+                                            </Link>
+                                        </CardTitle>
+                                        <CardDescription className="mt-1">{house.userName}</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardFooter>
+                                {house.isActive ? (
+                                    <Badge className="bg-green-600 text-white hover:bg-green-600">Active</Badge>
+                                ) : (
+                                    <Badge variant="outline">Inactive</Badge>
+                                )}
+                            </CardFooter>
+                        </Card>
+                     )) : (
+                        <div className="h-24 text-center flex items-center justify-center">
+                            <p>No open houses found.</p>
+                        </div>
+                    )}
+                 </div>
+                 
+                {/* Desktop Table View */}
+                <div className="border rounded-lg hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Property</TableHead>
                         <TableHead>Address</TableHead>
-                        <TableHead className="hidden sm:table-cell">Created By</TableHead>
+                        <TableHead>Created By</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -439,9 +526,8 @@ export default function AdminPage() {
                             <Link href={`/user/open-house/${house.id}`} className="hover:underline font-medium block max-w-xs truncate">
                                 {house.address}
                             </Link>
-                             <div className="text-sm text-muted-foreground sm:hidden">{house.userName}</div>
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell">{house.userName}</TableCell>
+                          <TableCell>{house.userName}</TableCell>
                            <TableCell>
                                 {house.isActive ? (
                                     <Badge className="bg-green-600 text-white hover:bg-green-600">
@@ -462,6 +548,7 @@ export default function AdminPage() {
                     </TableBody>
                   </Table>
                 </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -761,5 +848,3 @@ export default function AdminPage() {
     </>
   );
 }
-
-    

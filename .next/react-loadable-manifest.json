@@ -1,1 +1,6 @@
-{}
+{
+  "app/user/profile/page.tsx -> firebase/firestore": {
+    "id": "app/user/profile/page.tsx -> firebase/firestore",
+    "files": []
+  }
+}

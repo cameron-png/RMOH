@@ -38,10 +38,15 @@
         "app/user/gifts/page": {
           "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fgifts%2Factions.ts%22%2C%5B%7B%22id%22%3A%2200802d3de0cf40b43e5805312624cfa8f9ec7b48ae%22%2C%22exportedName%22%3A%22getGiftbitRegions%22%7D%2C%7B%22id%22%3A%224033136359b3185ffbaa946a6b3d14526ddf058fa0%22%2C%22exportedName%22%3A%22processGift%22%7D%2C%7B%22id%22%3A%224077c72716e47c8ab9893201ec8687799a8ea1e1e9%22%2C%22exportedName%22%3A%22getGiftbitBrands%22%7D%5D%5D%5D&__client_imported__=true!",
           "async": true
+        },
+        "app/user/profile/page": {
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fgifts%2Factions.ts%22%2C%5B%7B%22id%22%3A%2200802d3de0cf40b43e5805312624cfa8f9ec7b48ae%22%2C%22exportedName%22%3A%22getGiftbitRegions%22%7D%2C%7B%22id%22%3A%224033136359b3185ffbaa946a6b3d14526ddf058fa0%22%2C%22exportedName%22%3A%22processGift%22%7D%2C%7B%22id%22%3A%224077c72716e47c8ab9893201ec8687799a8ea1e1e9%22%2C%22exportedName%22%3A%22getGiftbitBrands%22%7D%5D%5D%5D&__client_imported__=true!",
+          "async": true
         }
       },
       "layer": {
-        "app/user/gifts/page": "action-browser"
+        "app/user/gifts/page": "action-browser",
+        "app/user/profile/page": "action-browser"
       }
     },
     "4033136359b3185ffbaa946a6b3d14526ddf058fa0": {
@@ -49,10 +54,15 @@
         "app/user/gifts/page": {
           "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fgifts%2Factions.ts%22%2C%5B%7B%22id%22%3A%2200802d3de0cf40b43e5805312624cfa8f9ec7b48ae%22%2C%22exportedName%22%3A%22getGiftbitRegions%22%7D%2C%7B%22id%22%3A%224033136359b3185ffbaa946a6b3d14526ddf058fa0%22%2C%22exportedName%22%3A%22processGift%22%7D%2C%7B%22id%22%3A%224077c72716e47c8ab9893201ec8687799a8ea1e1e9%22%2C%22exportedName%22%3A%22getGiftbitBrands%22%7D%5D%5D%5D&__client_imported__=true!",
           "async": true
+        },
+        "app/user/profile/page": {
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fgifts%2Factions.ts%22%2C%5B%7B%22id%22%3A%2200802d3de0cf40b43e5805312624cfa8f9ec7b48ae%22%2C%22exportedName%22%3A%22getGiftbitRegions%22%7D%2C%7B%22id%22%3A%224033136359b3185ffbaa946a6b3d14526ddf058fa0%22%2C%22exportedName%22%3A%22processGift%22%7D%2C%7B%22id%22%3A%224077c72716e47c8ab9893201ec8687799a8ea1e1e9%22%2C%22exportedName%22%3A%22getGiftbitBrands%22%7D%5D%5D%5D&__client_imported__=true!",
+          "async": true
         }
       },
       "layer": {
-        "app/user/gifts/page": "action-browser"
+        "app/user/gifts/page": "action-browser",
+        "app/user/profile/page": "action-browser"
       }
     },
     "4077c72716e47c8ab9893201ec8687799a8ea1e1e9": {
@@ -60,10 +70,15 @@
         "app/user/gifts/page": {
           "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fgifts%2Factions.ts%22%2C%5B%7B%22id%22%3A%2200802d3de0cf40b43e5805312624cfa8f9ec7b48ae%22%2C%22exportedName%22%3A%22getGiftbitRegions%22%7D%2C%7B%22id%22%3A%224033136359b3185ffbaa946a6b3d14526ddf058fa0%22%2C%22exportedName%22%3A%22processGift%22%7D%2C%7B%22id%22%3A%224077c72716e47c8ab9893201ec8687799a8ea1e1e9%22%2C%22exportedName%22%3A%22getGiftbitBrands%22%7D%5D%5D%5D&__client_imported__=true!",
           "async": true
+        },
+        "app/user/profile/page": {
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fgifts%2Factions.ts%22%2C%5B%7B%22id%22%3A%2200802d3de0cf40b43e5805312624cfa8f9ec7b48ae%22%2C%22exportedName%22%3A%22getGiftbitRegions%22%7D%2C%7B%22id%22%3A%224033136359b3185ffbaa946a6b3d14526ddf058fa0%22%2C%22exportedName%22%3A%22processGift%22%7D%2C%7B%22id%22%3A%224077c72716e47c8ab9893201ec8687799a8ea1e1e9%22%2C%22exportedName%22%3A%22getGiftbitBrands%22%7D%5D%5D%5D&__client_imported__=true!",
+          "async": true
         }
       },
       "layer": {
-        "app/user/gifts/page": "action-browser"
+        "app/user/gifts/page": "action-browser",
+        "app/user/profile/page": "action-browser"
       }
     }
   },
