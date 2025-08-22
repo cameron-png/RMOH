@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info } from 'lucide-react';
+import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -390,8 +390,10 @@ export default function GiftsPage() {
                                 </CardContent>
                                 <CardFooter>
                                     {gift.claimUrl ? (
-                                        <Button variant="outline" size="sm" onClick={() => handleCopyLink(gift.claimUrl!)} className="w-full">
-                                            <Copy className="mr-2 h-4 w-4" /> Copy Link
+                                        <Button variant="outline" size="sm" asChild className="w-full">
+                                            <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer">
+                                                <ExternalLink className="mr-2 h-4 w-4" /> Open Gift
+                                            </a>
                                         </Button>
                                     ) : (
                                         <Button variant="outline" size="sm" className="w-full" disabled>
@@ -422,7 +424,7 @@ export default function GiftsPage() {
                                                     </TooltipTrigger>
                                                     <TooltipContent>
                                                         <p className="max-w-xs">
-                                                            This is the recipient's live gift card link. It has already been emailed to them, but you can use this to copy and resend it manually.
+                                                            This is the recipient's live gift card link. It has already been emailed to them, but you can use this to open and resend it manually.
                                                         </p>
                                                     </TooltipContent>
                                                 </Tooltip>
@@ -453,8 +455,10 @@ export default function GiftsPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {gift.claimUrl ? (
-                                            <Button variant="outline" size="sm" onClick={() => handleCopyLink(gift.claimUrl!)}>
-                                                <Copy className="mr-2 h-4 w-4" /> Copy Link
+                                            <Button variant="ghost" size="icon" asChild>
+                                                <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer" aria-label="Open Gift Link">
+                                                    <ExternalLink />
+                                                </a>
                                             </Button>
                                         ) : (
                                             <span>-</span>
@@ -481,5 +485,3 @@ export default function GiftsPage() {
     </>
   );
 }
-
-    
