@@ -1,8 +1,10 @@
 {
+  "/api/auth/login/route": "app/api/auth/login/route.js",
   "/page": "app/page.js",
   "/user/dashboard/page": "app/user/dashboard/page.js",
   "/user/gifts/page": "app/user/gifts/page.js",
   "/user/billing/page": "app/user/billing/page.js",
   "/user/open-house/[id]/page": "app/user/open-house/[id]/page.js",
-  "/admin/page": "app/admin/page.js"
+  "/admin/page": "app/admin/page.js",
+  "/user/my-leads/page": "app/user/my-leads/page.js"
 }
