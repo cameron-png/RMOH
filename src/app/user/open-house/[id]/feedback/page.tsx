@@ -98,10 +98,16 @@ export default function FeedbackResponsesPage() {
   }, [authLoading, user, fetchData]);
 
   const renderAnswer = (answer: any, type: string) => {
+    if (!answer && type !== 'rating') {
+        return <span className="text-muted-foreground italic">No answer</span>;
+    }
     if (Array.isArray(answer)) {
-      return answer.join(', ');
+      return answer.length > 0 ? answer.join(', ') : <span className="text-muted-foreground italic">No answer</span>;
     }
     if (type === 'rating') {
+      if (!answer || answer === 0) {
+        return <span className="text-muted-foreground italic">No answer</span>;
+      }
       return (
         <div className="flex items-center gap-1">
           {[...Array(5)].map((_, i) => (
@@ -111,7 +117,7 @@ export default function FeedbackResponsesPage() {
         </div>
       );
     }
-    return answer || <span className="text-muted-foreground italic">No answer</span>;
+    return answer;
   };
   
   const formatName = (name: string) => {
@@ -135,9 +141,15 @@ export default function FeedbackResponsesPage() {
     
     submission.answers.forEach(a => {
         let answerText = a.answer;
-        if (a.questionType === 'rating') answerText = `${a.answer}/5`;
-        if (Array.isArray(a.answer)) answerText = a.answer.join(', ');
-        if (!answerText) answerText = '(No answer)';
+        if (a.questionType === 'rating') {
+            answerText = (!a.answer || a.answer === 0) ? '(No answer)' : `${a.answer}/5`;
+        }
+        if (Array.isArray(a.answer)) {
+            answerText = a.answer.length > 0 ? a.answer.join(', ') : '(No answer)';
+        }
+        if (!answerText) {
+            answerText = '(No answer)';
+        }
         text += `Q: ${a.questionText}\nA: ${answerText}\n\n`;
     });
     return text;
