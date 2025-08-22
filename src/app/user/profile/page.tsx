@@ -12,7 +12,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { FeedbackForm, GiftbitRegion } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { getGiftConfigurationForUser } from '@/app/user/gifts/actions';
+import { getGiftConfigurationForUser, getGiftbitRegions } from '@/app/user/gifts/actions';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -79,7 +80,7 @@ export default function ProfilePage() {
   });
   
   const fetchInitialData = useCallback(async () => {
-    if (!user?.region) return;
+    if (!user) return;
     
     setLoadingRegions(true);
     // Fetch forms and regions
@@ -92,10 +93,10 @@ export default function ProfilePage() {
           where('userId', '==', user.uid)
         );
         
-        const [globalSnapshot, customSnapshot, { brands: fetchedBrands, regions: fetchedRegions }] = await Promise.all([
+        const [globalSnapshot, customSnapshot, fetchedRegions] = await Promise.all([
             getDocs(globalQuery), 
             getDocs(customQuery),
-            getGiftConfigurationForUser(user.region)
+            getGiftbitRegions()
         ]);
         
         const allForms = [
@@ -701,3 +702,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
