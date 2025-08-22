@@ -134,6 +134,7 @@ export interface GiftbitBrand {
 export interface AdminGift extends Gift {
     senderName: string;
     senderEmail: string;
+    brandName?: string;
     giftbitStatus?: string; // e.g., "sent_and_not_viewed", "redeemed"
     giftbitRedeemedDate?: string | null;
 }

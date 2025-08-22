@@ -319,11 +319,11 @@ export default function AdminPage() {
       gift.recipientEmail.toLowerCase().includes(giftSearch.toLowerCase()) ||
       gift.senderName.toLowerCase().includes(giftSearch.toLowerCase()) ||
       gift.senderEmail.toLowerCase().includes(giftSearch.toLowerCase()) ||
-      gift.brandCode.toLowerCase().includes(giftSearch.toLowerCase())
+      (gift.brandName || gift.brandCode).toLowerCase().includes(giftSearch.toLowerCase())
     );
   }, [allGifts, giftSearch]);
 
-  const formatBalance = (balanceInCents?: number) => {
+  const formatBalance = (balanceInCents?: number | null) => {
     if (typeof balanceInCents !== 'number') return '$0.00';
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -378,7 +378,7 @@ export default function AdminPage() {
             <StatCard title="Total Users" value={stats.totalUsers} subtext={`${stats.newUsers7Days} new in last 7 days`} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
             <StatCard title="Total Open Houses" value={stats.totalOpenHouses} subtext={`${stats.newOpenHouses7Days} new in last 7 days`} icon={<Home className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
             <StatCard title="Total Gifts Sent" value={stats.totalGifts} subtext={`${stats.newGifts7Days} in last 7 days`} icon={<Gift className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
-            <StatCard title="Giftbit Balance" value={formatBalance(giftbitBalance ?? undefined)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} isLoading={giftbitBalance === null} />
+            <StatCard title="Giftbit Balance" value={formatBalance(giftbitBalance)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} isLoading={giftbitBalance === null} />
        </div>
 
 
@@ -680,6 +680,7 @@ export default function AdminPage() {
                       <TableRow>
                         <TableHead>Recipient</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Brand</TableHead>
                         <TableHead>Sender</TableHead>
                         <TableHead>DB Status</TableHead>
                         <TableHead>Giftbit Status</TableHead>
@@ -697,6 +698,7 @@ export default function AdminPage() {
                             <div className="text-sm text-muted-foreground">{gift.recipientEmail}</div>
                           </TableCell>
                           <TableCell>{formatBalance(gift.amountInCents)}</TableCell>
+                          <TableCell>{gift.brandName}</TableCell>
                           <TableCell>{gift.senderName}</TableCell>
                            <TableCell>
                                 <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : gift.status === 'Cancelled' ? 'outline' : 'secondary'}>
@@ -742,7 +744,7 @@ export default function AdminPage() {
                         )
                       }) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="h-24 text-center">
+                          <TableCell colSpan={8} className="h-24 text-center">
                             No gifts found.
                           </TableCell>
                         </TableRow>

@@ -144,17 +144,19 @@ export async function getAdminGiftData(): Promise<AdminGift[]> {
     }
 
     try {
-        const [giftsSnapshot, usersSnapshot, giftbitRewardsResponse] = await Promise.all([
+        const [giftsSnapshot, usersSnapshot, giftbitRewardsResponse, allBrandsResponse] = await Promise.all([
             adminDb.collection('gifts').orderBy('createdAt', 'desc').get(),
             adminDb.collection('users').get(),
-            GIFTBIT_API_KEY ? fetch(`${GIFTBIT_BASE_URL}/gifts?limit=500`, { // Fetch all gifts/rewards from giftbit
+            GIFTBIT_API_KEY ? fetch(`${GIFTBIT_BASE_URL}/gifts?limit=500`, { 
                 headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-                next: { revalidate: 60 } // Revalidate every minute
-            }) : Promise.resolve(null)
+                next: { revalidate: 60 } 
+            }) : Promise.resolve(null),
+            GIFTBIT_API_KEY ? getAvailableGiftbitBrands() : Promise.resolve({ brands: [] }),
         ]);
 
         const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as UserProfile]));
         const giftsFromDb = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
+        const allBrandsMap = new Map((allBrandsResponse.brands || []).map(b => [b.brand_code, b.name]));
         
         let giftbitRewardsMap = new Map();
         if (giftbitRewardsResponse && giftbitRewardsResponse.ok) {
@@ -177,6 +179,7 @@ export async function getAdminGiftData(): Promise<AdminGift[]> {
                 ...gift,
                 senderName: sender?.name || 'Unknown User',
                 senderEmail: sender?.email || 'N/A',
+                brandName: allBrandsMap.get(gift.brandCode) || gift.brandCode,
                 giftbitStatus: giftbitReward?.status,
                 giftbitRedeemedDate: giftbitReward?.redeemed_date,
             };
