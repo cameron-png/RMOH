@@ -293,6 +293,7 @@ export async function sendGiftEmail(params: SendGiftEmailParams) {
             from: `"${params.sender.name}" <${process.env.SMTP_FROM_EMAIL}>`,
             replyTo: params.sender.email,
             to: params.recipientEmail,
+            cc: params.sender.email,
             subject: subject,
             html: html,
         });
