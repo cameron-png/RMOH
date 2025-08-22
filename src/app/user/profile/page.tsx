@@ -387,7 +387,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle>Your Information</CardTitle>
               <CardDescription>
-                Your personal contact and licensing details.
+                Your contact and licensing details.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -541,7 +541,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle>Feedback Preferences</CardTitle>
               <CardDescription>
-                Customize your default feedback form for new open houses.
+                Set your default feedback form.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -567,7 +567,7 @@ export default function ProfilePage() {
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      This form will be automatically assigned to new open houses.
+                      This form will be assigned to new open houses.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -590,7 +590,7 @@ export default function ProfilePage() {
         <CardHeader>
             <CardTitle className="flex items-center gap-2"><KeyRound/> API & Integrations</CardTitle>
             <CardDescription>
-                Use this API key to connect your account to third-party services like Zapier.
+                Use this key to connect to third-party services.
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -621,7 +621,7 @@ export default function ProfilePage() {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Regenerating your API key will break any existing integrations using the old key. You will need to update them with the new key.
+                        This will break any integrations using the old key. You will need to update them with the new one.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

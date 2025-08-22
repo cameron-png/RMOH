@@ -414,7 +414,7 @@ export default function AdminPage() {
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="w-full">
                   <CardTitle>All Users</CardTitle>
-                  <CardDescription>A list of all registered users on the platform.</CardDescription>
+                  <CardDescription>A list of all registered users.</CardDescription>
                 </div>
                  <Input
                     placeholder="Search by name or email..."
@@ -674,7 +674,7 @@ export default function AdminPage() {
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="w-full">
                   <CardTitle>All Gifts</CardTitle>
-                  <CardDescription>A complete log of all gifts created by all users.</CardDescription>
+                  <CardDescription>A complete log of all gifts sent.</CardDescription>
                 </div>
                  <Input
                     placeholder="Search gifts..."
@@ -779,7 +779,7 @@ export default function AdminPage() {
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="w-full">
                 <CardTitle>Form Library</CardTitle>
-                <CardDescription>Manage feedback forms in the library that all users can access.</CardDescription>
+                <CardDescription>Manage feedback forms for all users.</CardDescription>
               </div>
                <Button onClick={() => openFormDialog()} className="w-full sm:w-auto"><PlusCircle className="mr-2"/> Create New Form</Button>
             </CardHeader>
@@ -790,7 +790,7 @@ export default function AdminPage() {
                 <>
                 <div className="mb-6 bg-muted/50 p-4 rounded-lg">
                     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="default-form-select">Default Form for New Users</label>
-                    <p className="text-sm text-muted-foreground mb-2">This form will be the default for all new users upon sign-up.</p>
+                    <p className="text-sm text-muted-foreground mb-2">This form will be the default for all new users.</p>
                     <Select onValueChange={handleSetDefaultForm} value={appSettings.defaultGlobalFormId}>
                         <SelectTrigger id="default-form-select" className="w-full max-w-sm">
                             <SelectValue placeholder="Select a default form..." />
@@ -924,7 +924,7 @@ export default function AdminPage() {
                         <div>
                             <h4 className="font-semibold">Reset Application Settings</h4>
                             <p className="text-sm text-destructive/80 max-w-prose mt-1">
-                                This will remove any old or unused setting fields from the database. It can resolve issues caused by feature updates but should be used with caution. Current settings (like enabled gift brands) will be preserved.
+                                This will remove any old or unused setting fields from the database. Current settings will be preserved.
                             </p>
                         </div>
                         <Button

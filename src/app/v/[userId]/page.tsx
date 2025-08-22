@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { doc, getDoc, collection, addDoc, Timestamp, getDocs, query, where, limit, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, Lead, GiftbitBrand, AppSettings } from '@/lib/types';
+import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, GiftbitBrand, AppSettings } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -567,7 +567,7 @@ export default function VisitorFeedbackPage() {
                 <CardContent className="space-y-8">
                     {formTemplate.questions.map((q, index) => (
                         <div key={q.id}>
-                            <FormLabel className="font-semibold text-lg">{index + 1}. {q.text}</FormLabel>
+                            <FormLabel className="font-semibold text-xl">{index + 1}. {q.text}</FormLabel>
                             <div className="pt-4">
                                {renderQuestion(q)}
                             </div>
@@ -592,7 +592,7 @@ export default function VisitorFeedbackPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><UserPlus/> Please Sign In</CardTitle>
                     <CardDescription>
-                        Please provide your contact information for the agent.
+                        Provide your contact info for the agent.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -627,7 +627,7 @@ export default function VisitorFeedbackPage() {
                         </Button>
                   </div>
                   <FormDescription className="text-xs text-center text-muted-foreground pt-2 px-6">
-                    By submitting your information, you consent for {realtor?.name || 'the agent'} to contact you for marketing purposes.
+                    By submitting your information, you consent for {realtor?.name || 'the agent'} to contact you.
                   </FormDescription>
                 </CardFooter>
               </form>

@@ -183,7 +183,7 @@ export default function DashboardPage() {
       .sort((a, b) => {
         const dateA = a.createdAt ? a.createdAt.toDate().getTime() : 0;
         const dateB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
-        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+        return sortOrder === 'newest' ? dateB - dateA : dateA - b.createdAt.toDate().getTime();
       });
   }, [openHouses, searchTerm, sortOrder]);
 
@@ -447,7 +447,7 @@ export default function DashboardPage() {
             <AlertDialogHeader>
             <AlertDialogTitle>New Open House Created</AlertDialogTitle>
             <AlertDialogDescription>
-                Would you like to make this new listing the active open house for your QR code?
+                Would you like to make this your active open house?
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
