@@ -27,6 +27,10 @@ env:
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
     secret: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY # References the secret named 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'
 
+  - variable: GIFTBIT_API_KEY
+    secret: GIFTBIT_API_KEY
+    availability: [BUILD, RUNTIME]
+
   # Optional: If you explicitly need FIREBASE_CONFIG or FIREBASE_WEBAPP_CONFIG
   # to be injected for automatic SDK initialization and are overriding it.
   # Firebase often injects these automatically if not specified.

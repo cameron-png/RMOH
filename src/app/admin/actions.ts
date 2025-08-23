@@ -4,7 +4,10 @@
 import { adminDb } from '@/lib/firebase/server';
 import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
+import getConfig from 'next/config';
 
+const { serverRuntimeConfig } = getConfig();
+const GIFTBIT_API_KEY = serverRuntimeConfig.giftbitApiKey;
 
 function serializeTimestamps(obj: any): any {
     if (obj === null || obj === undefined) {
@@ -88,7 +91,6 @@ export async function getAdminDashboardData() {
 }
 
 
-const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
 

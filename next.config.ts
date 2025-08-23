@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -25,14 +24,17 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'api-testbed.giftbit.com',
+        port: '',
+        pathname: '/**',
+      },
+       {
+        protocol: 'https',
         hostname: 'uploadedimagestestbed.giftbit.com',
         port: '',
         pathname: '/**',
       },
     ],
-  },
-  env: {
-    GIFTBIT_API_KEY: process.env.GIFTBIT_API_KEY,
   },
   async headers() {
     return [
@@ -53,6 +55,10 @@ const nextConfig: NextConfig = {
       // Set a longer timeout for server actions
       serverActionsTimeout: 120000, // 2 minutes
     },
+  },
+  // Make the API key available on the server-side
+  serverRuntimeConfig: {
+    giftbitApiKey: process.env.GIFTBIT_API_KEY,
   },
 };
 
