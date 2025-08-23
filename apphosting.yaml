@@ -29,6 +29,7 @@ env:
 
   - variable: GIFTBIT_API_KEY
     secret: GIFTBIT_API_KEY # References the secret named 'GIFTBIT_API_KEY'
+    availability: [RUNTIME]
 
   # Optional: If you explicitly need FIREBASE_CONFIG or FIREBASE_WEBAPP_CONFIG
   # to be injected for automatic SDK initialization and are overriding it.
