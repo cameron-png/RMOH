@@ -12,8 +12,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
-import { GiftbitRegion } from '@/lib/types';
-import { getGiftbitRegions } from '@/app/user/gifts/actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,12 +26,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Edit, Loader2, ImageIcon, User as UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const onboardingFormSchema = z.object({
   phone: z.string().min(10, { message: "Please enter a valid 10-digit phone number."}).max(15, { message: "Phone number is too long."}),
-  region: z.string().min(1, "Please select your region."),
 });
 
 export function OnboardingForm() {
@@ -41,8 +37,6 @@ export function OnboardingForm() {
     const router = useRouter();
     const { toast } = useToast();
     
-    const [regions, setRegions] = useState<GiftbitRegion[]>([]);
-    const [loadingRegions, setLoadingRegions] = useState(true);
     const [formattedPhone, setFormattedPhone] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -60,7 +54,7 @@ export function OnboardingForm() {
 
     const form = useForm<z.infer<typeof onboardingFormSchema>>({
         resolver: zodResolver(onboardingFormSchema),
-        defaultValues: { phone: '', region: '' },
+        defaultValues: { phone: '' },
     });
     
     useEffect(() => {
@@ -68,25 +62,6 @@ export function OnboardingForm() {
             router.replace('/signup');
         }
     }, [user, loading, router]);
-    
-    useEffect(() => {
-        async function loadRegions() {
-            setLoadingRegions(true);
-            try {
-                const fetchedRegions = await getGiftbitRegions();
-                setRegions(fetchedRegions);
-            } catch(error) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: 'Could not load regions. Please try refreshing.'
-                })
-            } finally {
-                setLoadingRegions(false);
-            }
-        }
-        loadRegions();
-    }, [toast]);
 
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,7 +133,7 @@ export function OnboardingForm() {
             const userDocRef = doc(db, 'users', user.uid);
             await setDoc(userDocRef, {
                 phone: values.phone,
-                region: values.region,
+                region: 'us', // Default to US
                 photoURL: photoURL,
                 personalLogoUrl: personalLogoUrl,
                 brokerageLogoUrl: brokerageLogoUrl,
@@ -185,53 +160,28 @@ export function OnboardingForm() {
             </div>
         );
     }
-    
-    const uniqueRegions = Array.from(new Map(regions.map(item => [item.code, item])).values());
-
 
     return (
         <Card>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <CardContent className="space-y-6 pt-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="phone" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Phone Number</FormLabel>
-                                    <FormControl>
-                                        <Input 
-                                            placeholder="(555) 555-5555" 
-                                            {...field}
-                                            value={formattedPhone}
-                                            onChange={handlePhoneChange}
-                                            maxLength={14}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <FormField control={form.control} name="region" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Your Region</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loadingRegions}>
-                                        <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={loadingRegions ? "Loading regions..." : "Select your region"} />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          {uniqueRegions.map(region => (
-                                            <SelectItem key={region.code} value={region.code}>
-                                              {region.name} ({region.currency})
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                        </div>
-
+                        <FormField control={form.control} name="phone" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Phone Number</FormLabel>
+                                <FormControl>
+                                    <Input 
+                                        placeholder="(555) 555-5555" 
+                                        {...field}
+                                        value={formattedPhone}
+                                        onChange={handlePhoneChange}
+                                        maxLength={14}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        
                          <div className="flex flex-col sm:flex-row gap-6 items-center justify-around pt-4">
                             <FormItem className="flex flex-col items-center gap-2">
                                 <FormLabel>Your Photo</FormLabel>

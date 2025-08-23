@@ -52,7 +52,6 @@ export interface UserProfile {
   apiKey?: string;
   personalLogoUrl?: string;
   brokerageLogoUrl?: string;
-  region?: 'us' | 'ca' | 'au' | 'global';
   createdAt?: Timestamp;
   lastLoginAt?: Timestamp;
 }
