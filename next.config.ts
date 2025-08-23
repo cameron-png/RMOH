@@ -31,6 +31,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  env: {
+    GIFTBIT_API_KEY: process.env.GIFTBIT_API_KEY,
+  },
   async headers() {
     return [
       {
