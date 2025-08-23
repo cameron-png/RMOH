@@ -2,9 +2,9 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { Gift, UserProfile, GiftbitBrand, AppSettings, OpenHouse } from '@/lib/types';
+import { Gift, UserProfile, GiftbitBrand, AppSettings, OpenHouse, Transaction } from '@/lib/types';
 import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import getConfig from 'next/config';
 
 const { serverRuntimeConfig } = getConfig();
@@ -134,7 +134,18 @@ export async function processGift(giftId: string) {
             throw new Error(`Link generation failed for gift ${gift.id}. No URL in response.`);
         }
         
-        // 3. Update gift in Firestore and deduct balance atomically
+        // 3. Update gift in Firestore, deduct balance, and create transaction atomically
+        const newTransactionRef = adminDb.collection('transactions').doc();
+        const newTransaction: Omit<Transaction, 'id'> = {
+            userId: user.id,
+            type: 'Deduction',
+            amountInCents: gift.amountInCents,
+            description: `Gift to ${gift.recipientName} (${gift.recipientEmail})`,
+            createdAt: Timestamp.now(),
+            giftId: gift.id,
+            createdById: user.id,
+        };
+        
         await adminDb.runTransaction(async (transaction) => {
              transaction.update(userRef, {
                 availableBalance: FieldValue.increment(-gift.amountInCents)
@@ -142,8 +153,9 @@ export async function processGift(giftId: string) {
             transaction.update(giftRef, {
                 status: 'Sent',
                 claimUrl: claimUrl,
-                brandName: brandName, // Save the brand name
+                brandName: brandName,
             });
+            transaction.set(newTransactionRef, newTransaction);
         });
 
 
@@ -191,5 +203,3 @@ export async function declinePendingGift(giftId: string): Promise<{ success: boo
     return { success: false, message: 'Failed to decline the gift.' };
   }
 }
-
-    

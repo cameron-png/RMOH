@@ -151,6 +151,17 @@
       "layer": {
         "app/v/[userId]/page": "action-browser"
       }
+    },
+    "007c4bb35312e5244e2818bf444fbb64d0db79e4f9": {
+      "workers": {
+        "app/user/billing/page": {
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fapp%2Fuser%2Fbilling%2Factions.ts%22%2C%5B%7B%22id%22%3A%22007c4bb35312e5244e2818bf444fbb64d0db79e4f9%22%2C%22exportedName%22%3A%22getBillingHistory%22%7D%5D%5D%5D&__client_imported__=true!",
+          "async": true
+        }
+      },
+      "layer": {
+        "app/user/billing/page": "action-browser"
+      }
     }
   },
   "edge": {},

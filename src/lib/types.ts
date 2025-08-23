@@ -113,6 +113,17 @@ export interface Gift {
     openHouseId?: string; // Optional link to the open house
 }
 
+export interface Transaction {
+    id: string;
+    userId: string;
+    type: 'Credit' | 'Deduction';
+    amountInCents: number;
+    description: string;
+    createdAt: Timestamp;
+    giftId?: string; // Optional link to the gift document
+    createdById?: string; // ID of user who initiated transaction, e.g. admin
+}
+
 export interface GiftbitSettings {
     enabledBrandCodes?: string[];
 }

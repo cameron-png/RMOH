@@ -19,10 +19,10 @@ import {
   updateProfile,
   Auth,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, Timestamp, collection, addDoc } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase/client';
 import { useRouter } from "next/navigation";
-import { UserProfile } from "@/lib/types";
+import { UserProfile, Transaction } from "@/lib/types";
 
 export type User = FirebaseUser & UserProfile;
 
@@ -59,17 +59,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { ...firebaseUser, ...userProfile };
         } else {
            console.log(`User profile for ${firebaseUser.uid} not found, creating one.`);
-           // If the profile doesn't exist, this is likely a new user. Create their profile.
+           const initialBalance = 10000; // $100 for new users
+           
             const newUserProfile: UserProfile = {
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
               name: firebaseUser.displayName || 'New User',
               phone: '',
-              availableBalance: 10000, // Default $100 for new users
+              availableBalance: initialBalance,
               createdAt: Timestamp.now(),
               lastLoginAt: Timestamp.now(),
             };
-            await setDoc(userDocRef, newUserProfile, { merge: true });
+            
+            const newTransaction: Omit<Transaction, 'id'> = {
+                userId: firebaseUser.uid,
+                type: 'Credit',
+                amountInCents: initialBalance,
+                description: 'Initial account balance',
+                createdAt: Timestamp.now(),
+                createdById: firebaseUser.uid
+            };
+
+            await setDoc(userDocRef, newUserProfile);
+            await addDoc(collection(db, "transactions"), newTransaction);
+
             setAvailableBalance(newUserProfile.availableBalance);
             return { ...firebaseUser, ...newUserProfile };
         }
