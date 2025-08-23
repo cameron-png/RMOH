@@ -44,7 +44,6 @@ export default function GiftsPage() {
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
-  const [allBrands, setAllBrands] = useState<GiftbitBrand[]>([]);
   const [enabledBrands, setEnabledBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
@@ -72,7 +71,7 @@ export default function GiftsPage() {
   });
   
   const handleBrandChange = (brandCode: string) => {
-    const brand = allBrands.find(b => b.brand_code === brandCode);
+    const brand = enabledBrands.find(b => b.brand_code === brandCode);
     setSelectedBrand(brand || null);
     form.setValue('brand', brandCode);
     form.setValue('amount', ''); // Reset amount when brand changes
@@ -147,8 +146,8 @@ export default function GiftsPage() {
 
       setLoadingBrands(true);
       try {
-        const { brands: enabled } = await getGiftConfigurationForUser();
-        setEnabledBrands(enabled);
+        const { brands } = await getGiftConfigurationForUser();
+        setEnabledBrands(brands);
       } catch (error) {
         toast({
           variant: 'destructive',
@@ -403,7 +402,7 @@ export default function GiftsPage() {
                                 <FormItem>
                                     <FormLabel>Amount</FormLabel>
                                     <FormControl>
-                                        <div id="amount-input-container">
+                                        <div>
                                             <div className="flex gap-2">
                                                 <AmountButton value={5} />
                                                 <AmountButton value={10} />
@@ -490,7 +489,7 @@ export default function GiftsPage() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Brand:</span>
-                                        <span className="font-medium">{allBrands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
+                                        <span className="font-medium">{gift.brandName || gift.brandCode}</span>
                                     </div>
                                     {house && (
                                         <div className="flex justify-between items-center text-muted-foreground">
@@ -570,11 +569,7 @@ export default function GiftsPage() {
                                     </TableCell>
                                     <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
                                     <TableCell>
-                                        {gift.brandCode ? (
-                                            <span>{allBrands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
-                                        ) : (
-                                            <span>-</span>
-                                        )}
+                                        {gift.brandName || gift.brandCode}
                                     </TableCell>
                                      <TableCell>
                                         {house ? (

@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { doc, getDoc, collection, addDoc, Timestamp, getDocs, query, where, limit, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile } from '@/lib/types';
+import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, Gift } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Home, ThumbsUp, UserPlus, CheckCircle, Star, AlertCircle, Mail, Phone, Building, Contact, Gift } from 'lucide-react';
+import { Home, ThumbsUp, UserPlus, CheckCircle, Star, AlertCircle, Mail, Phone, Building, Contact, Gift as GiftIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -226,12 +226,13 @@ export default function VisitorFeedbackPage() {
         
         // If gifts are enabled for this house, create a pending gift
         if (activeHouse.isGiftEnabled && activeHouse.giftBrandCode && activeHouse.giftAmountInCents && newLeadData.email) {
-            const newGift: Omit<any, 'id'> = {
+            const newGift: Omit<Gift, 'id'> = {
                 userId: activeHouse.userId,
                 openHouseId: activeHouse.id,
                 recipientName: newLeadData.name,
                 recipientEmail: newLeadData.email,
                 brandCode: activeHouse.giftBrandCode,
+                brandName: activeHouse.giftBrandName,
                 amountInCents: activeHouse.giftAmountInCents,
                 type: 'Auto',
                 status: 'Pending',
@@ -395,7 +396,7 @@ export default function VisitorFeedbackPage() {
     return (
         <div className="bg-yellow-100/60 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800/60 rounded-lg p-3 flex items-center gap-4">
             <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
-                <Gift className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+                <GiftIcon className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
             </div>
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 Provide your feedback and receive {giftAmountText} as a thank you!

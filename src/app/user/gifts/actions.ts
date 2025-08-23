@@ -142,6 +142,7 @@ export async function processGift(giftId: string) {
             transaction.update(giftRef, {
                 status: 'Sent',
                 claimUrl: claimUrl,
+                brandName: brandName, // Save the brand name
             });
         });
 

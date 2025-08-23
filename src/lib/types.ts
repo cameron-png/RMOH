@@ -103,6 +103,7 @@ export interface Gift {
     recipientName: string;
     recipientEmail: string;
     brandCode: string;
+    brandName?: string;
     amountInCents: number;
     message?: string;
     type: 'Manual' | 'Auto';

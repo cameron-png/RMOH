@@ -716,7 +716,7 @@ export default function AdminPage() {
                             <div className="text-sm text-muted-foreground">{gift.recipientEmail}</div>
                           </TableCell>
                           <TableCell>{formatBalance(gift.amountInCents)}</TableCell>
-                          <TableCell>{gift.brandName}</TableCell>
+                          <TableCell>{gift.brandName || gift.brandCode}</TableCell>
                           <TableCell>{gift.senderName}</TableCell>
                            <TableCell>
                                 <Badge variant={gift.status === 'Sent' ? 'default' : gift.status === 'Failed' ? 'destructive' : gift.status === 'Cancelled' ? 'outline' : 'secondary'}>
