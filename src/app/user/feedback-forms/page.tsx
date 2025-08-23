@@ -21,12 +21,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
+import { Switch } from '@/components/ui/switch';
 
 
 const optionSchema = z.object({
@@ -39,6 +40,7 @@ const questionSchema = z.object({
   text: z.string().min(3, "Question text must be at least 3 characters"),
   type: z.enum(['short-answer', 'yes-no', 'rating', 'multiple-choice']),
   options: z.array(optionSchema).optional(),
+  isRequired: z.boolean().optional(),
 });
 
 const formSchema = z.object({
@@ -130,7 +132,7 @@ export default function FeedbackFormsPage() {
     if (formToEdit) {
         form.reset({
             title: formToEdit.title,
-            questions: formToEdit.questions.map(q => ({...q}))
+            questions: formToEdit.questions.map(q => ({...q, isRequired: q.isRequired || false}))
         });
     } else {
         form.reset({ title: "", questions: [] });
@@ -140,7 +142,7 @@ export default function FeedbackFormsPage() {
   const watchQuestions = form.watch('questions');
 
   const addQuestion = () => {
-    append({ id: uuidv4(), text: '', type: 'short-answer', options: [] });
+    append({ id: uuidv4(), text: '', type: 'short-answer', options: [], isRequired: false });
   };
   
   const addOption = (questionIndex: number) => {
@@ -487,7 +489,7 @@ export default function FeedbackFormsPage() {
                         </div>
                         <div className="space-y-4">
                           {fields.map((field, index) => (
-                            <Card key={field.id} className="p-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50 relative transition-all">
+                            <Card key={field.id} className="p-4 bg-muted/50 relative transition-all">
                               <div className="flex justify-between items-start gap-4">
                                 <div className="flex-grow space-y-4">
                                   <FormField control={form.control} name={`questions.${index}.text`} render={({ field }) => (
@@ -533,6 +535,20 @@ export default function FeedbackFormsPage() {
                                       </Button>
                                     </div>
                                   )}
+                                  <FormField control={form.control} name={`questions.${index}.isRequired`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-4 bg-background">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Required</FormLabel>
+                                            <FormMessage />
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                  )}/>
                                 </div>
                                  <div className="absolute top-2 right-2 flex flex-col gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => move(index, index - 1)} disabled={index === 0} type="button" aria-label="Move up">

@@ -42,6 +42,7 @@ const questionSchema = z.object({
   text: z.string().min(3, "Question text must be at least 3 characters"),
   type: z.enum(['short-answer', 'yes-no', 'rating', 'multiple-choice']),
   options: z.array(optionSchema).optional(),
+  isRequired: z.boolean().optional(),
 });
 
 const formSchema = z.object({
@@ -157,7 +158,7 @@ export default function AdminPage() {
     if (formToEdit) {
         form.reset({
             title: formToEdit.title,
-            questions: formToEdit.questions.map(q => ({...q})) // Deep copy to avoid reference issues
+            questions: formToEdit.questions.map(q => ({...q, isRequired: q.isRequired || false}))
         });
     } else {
         form.reset({ title: "", questions: [] });
@@ -167,7 +168,7 @@ export default function AdminPage() {
   const watchQuestions = form.watch('questions');
 
   const addQuestion = () => {
-    append({ id: uuidv4(), text: '', type: 'short-answer', options: [] });
+    append({ id: uuidv4(), text: '', type: 'short-answer', options: [], isRequired: false });
   };
   
   const addOption = (questionIndex: number) => {
@@ -968,7 +969,7 @@ export default function AdminPage() {
                         </div>
                         <div className="space-y-4">
                           {fields.map((field, index) => (
-                            <Card key={field.id} className="p-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50 relative transition-all">
+                            <Card key={field.id} className="p-4 bg-muted/50 relative transition-all">
                               <div className="flex justify-between items-start gap-4">
                                 <div className="flex-grow space-y-4">
                                   <FormField control={form.control} name={`questions.${index}.text`} render={({ field }) => (
@@ -1014,6 +1015,20 @@ export default function AdminPage() {
                                       </Button>
                                     </div>
                                   )}
+                                   <FormField control={form.control} name={`questions.${index}.isRequired`} render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-4 bg-background">
+                                            <div className="space-y-0.5">
+                                                <FormLabel>Required</FormLabel>
+                                                <FormMessage />
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}/>
                                 </div>
                                 <div className="absolute top-2 right-2 flex flex-col gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => move(index, index - 1)} disabled={index === 0} type="button" aria-label="Move up">

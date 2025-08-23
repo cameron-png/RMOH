@@ -70,6 +70,7 @@ export interface Question {
     text: string;
     type: 'short-answer' | 'yes-no' | 'rating' | 'multiple-choice';
     options?: QuestionOption[];
+    isRequired?: boolean;
 }
 
 export interface FeedbackForm {

@@ -37,6 +37,33 @@ const leadSchema = z.object({
 });
 
 
+// Function to build the Zod schema dynamically
+const buildFeedbackSchema = (questions: QuestionType[]) => {
+  const schemaShape: { [key: string]: z.ZodTypeAny } = {};
+
+  questions.forEach(q => {
+    if (q.isRequired) {
+      switch (q.type) {
+        case 'short-answer':
+          schemaShape[q.id] = z.string().min(1, 'This field is required.');
+          break;
+        case 'yes-no':
+           schemaShape[q.id] = z.enum(['Yes', 'No'], { required_error: 'Please select an option.' });
+          break;
+        case 'rating':
+          schemaShape[q.id] = z.number().min(1, 'Please provide a rating.');
+          break;
+        case 'multiple-choice':
+          schemaShape[q.id] = z.array(z.string()).nonempty('Please select at least one option.');
+          break;
+      }
+    }
+  });
+
+  return z.object(schemaShape);
+};
+
+
 export default function VisitorFeedbackPage() {
   const { userId } = useParams();
   const { toast } = useToast();
@@ -50,6 +77,14 @@ export default function VisitorFeedbackPage() {
   const [formTemplate, setFormTemplate] = useState<FeedbackForm | null>(null);
   
   const [feedbackSubmissionId, setFeedbackSubmissionId] = useState<string | null>(null);
+
+  const [dynamicFeedbackSchema, setDynamicFeedbackSchema] = useState(z.object({}));
+
+  useEffect(() => {
+    if (formTemplate) {
+        setDynamicFeedbackSchema(buildFeedbackSchema(formTemplate.questions));
+    }
+  }, [formTemplate]);
 
 
   const fetchPageData = useCallback(async () => {
@@ -121,7 +156,10 @@ export default function VisitorFeedbackPage() {
   }, [fetchPageData]);
 
 
-  const feedbackForm = useForm();
+  const feedbackForm = useForm({
+     resolver: zodResolver(dynamicFeedbackSchema),
+  });
+
   const leadForm = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: { name: "", email: "", phone: "" },
@@ -252,115 +290,59 @@ export default function VisitorFeedbackPage() {
   
   const renderQuestion = (question: QuestionType) => {
     const fieldName = question.id;
-    switch(question.type) {
-        case 'short-answer':
-            return (
-                 <FormField
-                    control={feedbackForm.control}
-                    name={fieldName}
-                    defaultValue=""
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl><Textarea placeholder="Your answer..." {...field} className="text-base" /></FormControl>
-                        <FormMessage />
+    return (
+      <FormField
+        control={feedbackForm.control}
+        name={fieldName}
+        defaultValue={question.type === 'multiple-choice' ? [] : question.type === 'rating' ? 0 : ""}
+        render={({ field }) => (
+          <FormItem>
+            <FormControl>
+              <>
+                {question.type === 'short-answer' && <Textarea placeholder="Your answer..." {...field} className="text-base" />}
+                {question.type === 'yes-no' && (
+                  <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-2 gap-4">
+                    <FormItem>
+                      <RadioGroupItem value="Yes" id={`${fieldName}-yes`} className="peer sr-only" />
+                      <FormLabel htmlFor={`${fieldName}-yes`} className="flex h-16 w-full items-center justify-center rounded-md border-2 border-muted bg-popover p-4 text-base font-semibold hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-accent peer-data-[state=checked]:text-accent-foreground">Yes</FormLabel>
+                    </FormItem>
+                    <FormItem>
+                      <RadioGroupItem value="No" id={`${fieldName}-no`} className="peer sr-only" />
+                      <FormLabel htmlFor={`${fieldName}-no`} className="flex h-16 w-full items-center justify-center rounded-md border-2 border-muted bg-popover p-4 text-base font-semibold hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-accent peer-data-[state=checked]:text-accent-foreground">No</FormLabel>
+                    </FormItem>
+                  </RadioGroup>
+                )}
+                {question.type === 'rating' && <StarRatingInput field={field} />}
+                {question.type === 'multiple-choice' && (
+                  <div className="space-y-3">
+                    {question.options?.map(option => (
+                      <FormItem key={option.id} className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            className="h-6 w-6"
+                            checked={field.value?.includes(option.value)}
+                            onCheckedChange={(checked) => {
+                              const currentValue = field.value || [];
+                              return checked
+                                ? field.onChange([...currentValue, option.value])
+                                : field.onChange(currentValue.filter((value: string) => value !== option.value));
+                            }}
+                          />
+                        </FormControl>
+                        <FormLabel className="font-normal text-base">{option.value}</FormLabel>
                       </FormItem>
-                    )}
-                />
-            );
-        case 'yes-no':
-            return (
-                 <FormField
-                    control={feedbackForm.control}
-                    name={fieldName}
-                    render={({ field }) => (
-                        <FormItem>
-                           <FormControl>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-2 gap-4">
-                                    <FormItem>
-                                        <RadioGroupItem value="Yes" id={`${fieldName}-yes`} className="peer sr-only" />
-                                        <FormLabel htmlFor={`${fieldName}-yes`} className="flex h-16 w-full items-center justify-center rounded-md border-2 border-muted bg-popover p-4 text-base font-semibold hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-accent peer-data-[state=checked]:text-accent-foreground">
-                                            Yes
-                                        </FormLabel>
-                                    </FormItem>
-                                    <FormItem>
-                                        <RadioGroupItem value="No" id={`${fieldName}-no`} className="peer sr-only" />
-                                        <FormLabel htmlFor={`${fieldName}-no`} className="flex h-16 w-full items-center justify-center rounded-md border-2 border-muted bg-popover p-4 text-base font-semibold hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-accent peer-data-[state=checked]:text-accent-foreground">
-                                            No
-                                        </FormLabel>
-                                    </FormItem>
-                                </RadioGroup>
-                           </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            );
-        case 'rating':
-            return (
-                <FormField
-                    control={feedbackForm.control}
-                    name={fieldName}
-                    defaultValue={0}
-                    render={({ field }) => (
-                        <FormItem>
-                           <FormControl>
-                                <StarRatingInput field={field} />
-                           </FormControl>
-                           <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            );
-        case 'multiple-choice':
-            return (
-                 <FormField
-                    control={feedbackForm.control}
-                    name={fieldName}
-                    defaultValue={[]}
-                    render={({ field }) => (
-                        <FormItem className="space-y-3">
-                           {question.options?.map(option => (
-                            <FormField
-                                key={option.id}
-                                control={feedbackForm.control}
-                                name={fieldName}
-                                render={({ field }) => {
-                                return (
-                                    <FormItem
-                                        key={option.id}
-                                        className="flex flex-row items-start space-x-3 space-y-0"
-                                    >
-                                        <FormControl>
-                                        <Checkbox
-                                            className="h-6 w-6"
-                                            checked={field.value?.includes(option.value)}
-                                            onCheckedChange={(checked) => {
-                                            return checked
-                                                ? field.onChange([...(field.value || []), option.value])
-                                                : field.onChange(
-                                                    field.value?.filter(
-                                                        (value: string) => value !== option.value
-                                                    )
-                                                    )
-                                            }}
-                                        />
-                                        </FormControl>
-                                        <FormLabel className="font-normal text-base">
-                                            {option.value}
-                                        </FormLabel>
-                                    </FormItem>
-                                )
-                                }}
-                            />
-                            ))}
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            );
-        default: return null;
-    }
+                    ))}
+                  </div>
+                )}
+              </>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    );
   };
+
 
   const formatPhoneNumber = (value?: string) => {
     if (!value) return "";
@@ -538,7 +520,7 @@ export default function VisitorFeedbackPage() {
         );
 
       case 'form':
-        if (!formTemplate) return null; // Should be handled by button disable but good for safety
+        if (!formTemplate) return null;
         return (
           <Card className="w-full max-w-lg">
              <Form {...feedbackForm}>
@@ -553,7 +535,10 @@ export default function VisitorFeedbackPage() {
                 <CardContent className="space-y-8">
                     {formTemplate.questions.map((q, index) => (
                         <div key={q.id}>
-                            <FormLabel className="font-semibold text-xl">{index + 1}. {q.text}</FormLabel>
+                            <FormLabel className="font-semibold text-xl flex items-center gap-2">
+                               <span>{index + 1}. {q.text}</span>
+                               {q.isRequired && <span className="text-destructive text-lg">*</span>}
+                            </FormLabel>
                             <div className="pt-4">
                                {renderQuestion(q)}
                             </div>
