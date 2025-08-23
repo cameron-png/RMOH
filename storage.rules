@@ -2,31 +2,43 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Default deny all access
+  
+    // Default deny all access to files
     match /{allPaths=**} {
       allow read, write: if false;
     }
-
-    // Allow public read access to all images, as URLs are shared
-    // in emails and displayed on public/user pages.
-    match /profile-pictures/{userId}/{allPaths=**} {
+    
+    // Allow public read for logos and photos
+    match /profile-pictures/{userId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    match /personal-logos/{userId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    match /brokerage-logos/{userId}/{allPaths=**} {
+    match /personal-logos/{userId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    match /open-house-images/{userId}/{allPaths=**} {
+    match /brokerage-logos/{userId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    match /open-house-images/{userId}/{houseId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow read access for system assets
+    match /RMOHbug.png {
+      allow read: if true;
+    }
+    match /RMOHbug white.png {
+        allow read: if true;
+    }
+     match /RMOH Logo.png {
+        allow read: if true;
+    }
+
   }
 }
