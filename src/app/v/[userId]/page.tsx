@@ -180,7 +180,7 @@ export default function VisitorFeedbackPage() {
       questionId: q.id,
       questionText: q.text,
       questionType: q.type,
-      answer: data[q.id]
+      answer: data[q.id] === undefined ? null : data[q.id]
     }));
 
     try {
@@ -299,7 +299,7 @@ export default function VisitorFeedbackPage() {
         render={({ field }) => (
           <FormItem>
             <FormControl>
-              <div>
+              <div className="space-y-2">
                 {question.type === 'short-answer' && <Textarea placeholder="Your answer..." {...field} className="text-base" />}
                 {question.type === 'yes-no' && (
                   <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-2 gap-4">
