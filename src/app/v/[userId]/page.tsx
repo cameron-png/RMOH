@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -298,7 +299,7 @@ export default function VisitorFeedbackPage() {
         render={({ field }) => (
           <FormItem>
             <FormControl>
-              <>
+              <div>
                 {question.type === 'short-answer' && <Textarea placeholder="Your answer..." {...field} className="text-base" />}
                 {question.type === 'yes-no' && (
                   <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-2 gap-4">
@@ -334,7 +335,7 @@ export default function VisitorFeedbackPage() {
                     ))}
                   </div>
                 )}
-              </>
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>
