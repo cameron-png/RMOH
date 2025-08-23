@@ -318,7 +318,7 @@ export default function GiftsPage() {
             <div className="flex-grow">
                 <h1 className="text-3xl font-bold tracking-tight font-headline">Gifts</h1>
                 <p className="text-muted-foreground">
-                    Create and track digital gift cards for your clients.
+                    Send and track digital gift cards for your clients.
                 </p>
             </div>
              <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
@@ -338,12 +338,12 @@ export default function GiftsPage() {
                     <DialogHeader>
                         <DialogTitle>Create a New Gift</DialogTitle>
                         <DialogDescription>
-                            Enter the details below to create a new digital gift card. The cost will be deducted from your available balance.
+                            The cost will be deducted from your available balance.
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField
+                             <FormField
                                 control={form.control}
                                 name="recipientName"
                                 render={({ field }) => (
@@ -402,7 +402,7 @@ export default function GiftsPage() {
                                 <FormItem>
                                     <FormLabel>Amount</FormLabel>
                                     <FormControl>
-                                        <>
+                                        <div>
                                             <div className="flex gap-2">
                                                 <AmountButton value={5} />
                                                 <AmountButton value={10} />
@@ -427,7 +427,7 @@ export default function GiftsPage() {
                                                     autoFocus
                                                 />
                                             )}
-                                        </>
+                                        </div>
                                     </FormControl>
                                     <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
                                     <FormMessage />
@@ -462,7 +462,7 @@ export default function GiftsPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Gift Log</CardTitle>
-                <CardDescription>A list of all the gifts you have created.</CardDescription>
+                <CardDescription>A list of all the gifts you have sent.</CardDescription>
             </CardHeader>
             <CardContent>
                 {loading ? (

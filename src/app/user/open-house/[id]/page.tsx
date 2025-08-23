@@ -644,7 +644,7 @@ export default function OpenHouseDetailPage() {
                                         <FormItem>
                                             <FormLabel>Amount</FormLabel>
                                             <FormControl>
-                                                 <>
+                                                 <div>
                                                     <div className="flex gap-2">
                                                         <AmountButton value={5} />
                                                         <AmountButton value={10} />
@@ -669,7 +669,7 @@ export default function OpenHouseDetailPage() {
                                                             autoFocus
                                                         />
                                                     )}
-                                                </>
+                                                </div>
                                             </FormControl>
                                             <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
                                             <FormMessage />
