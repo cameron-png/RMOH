@@ -31,6 +31,7 @@ import { getAdminDashboardData, getAvailableGiftbitBrands, saveGiftbitSettings, 
 import { format, formatDistanceToNow } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const optionSchema = z.object({
   id: z.string(),
@@ -979,21 +980,34 @@ export default function AdminPage() {
                                           <FormMessage />
                                       </FormItem>
                                   )}/>
-                                   <FormField control={form.control} name={`questions.${index}.type`} render={({ field }) => (
-                                      <FormItem>
-                                          <FormLabel>Question Type</FormLabel>
-                                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                              <FormControl><SelectTrigger><SelectValue placeholder="Select a question type" /></SelectTrigger></FormControl>
-                                              <SelectContent>
-                                                  <SelectItem value="short-answer">Short Answer</SelectItem>
-                                                  <SelectItem value="yes-no">Yes/No</SelectItem>
-                                                  <SelectItem value="rating">1-5 Rating</SelectItem>
-                                                  <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                                              </SelectContent>
-                                          </Select>
-                                          <FormMessage />
-                                      </FormItem>
-                                  )}/>
+                                   <div className="flex items-end gap-4">
+                                        <FormField control={form.control} name={`questions.${index}.type`} render={({ field }) => (
+                                            <FormItem className="flex-grow">
+                                                <FormLabel>Question Type</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a question type" /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="short-answer">Short Answer</SelectItem>
+                                                        <SelectItem value="yes-no">Yes/No</SelectItem>
+                                                        <SelectItem value="rating">1-5 Rating</SelectItem>
+                                                        <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name={`questions.${index}.isRequired`} render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 pb-2">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="!mt-0">Required</FormLabel>
+                                            </FormItem>
+                                        )}/>
+                                   </div>
                                   {watchQuestions[index]?.type === 'multiple-choice' && (
                                     <div className="space-y-3 pl-4 border-l-2 ml-2">
                                       <FormLabel>Options</FormLabel>
@@ -1015,20 +1029,6 @@ export default function AdminPage() {
                                       </Button>
                                     </div>
                                   )}
-                                   <FormField control={form.control} name={`questions.${index}.isRequired`} render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-4 bg-background">
-                                            <div className="space-y-0.5">
-                                                <FormLabel>Required</FormLabel>
-                                                <FormMessage />
-                                            </div>
-                                            <FormControl>
-                                                <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}/>
                                 </div>
                                 <div className="absolute top-2 right-2 flex flex-col gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => move(index, index - 1)} disabled={index === 0} type="button" aria-label="Move up">
@@ -1120,3 +1120,5 @@ export default function AdminPage() {
     </>
   );
 }
+
+    
