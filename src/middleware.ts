@@ -23,6 +23,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
+  // Also bypass for login, signup, and forgot password pages
+  const publicPaths = ['/', '/signup', '/forgot-password'];
+  if (publicPaths.includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/signup/')) {
+      return NextResponse.next();
+  }
 
   return authMiddleware(request, {
     loginPath: '/api/auth/login',
@@ -64,10 +69,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - v (public visitor pages)
+     * - v (public visitor pages which are handled above)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|v).*)',
-    '/user/:path*', 
-    '/admin/:path*'
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
