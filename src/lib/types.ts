@@ -21,6 +21,7 @@ export interface OpenHouse {
     feedbackFormId?: string;
     isGiftEnabled?: boolean;
     giftBrandCode?: string;
+    giftBrandName?: string;
     giftAmountInCents?: number;
 }
 

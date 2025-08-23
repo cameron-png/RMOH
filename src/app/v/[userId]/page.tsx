@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { doc, getDoc, collection, addDoc, Timestamp, getDocs, query, where, limit, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile, GiftbitBrand, AppSettings } from '@/lib/types';
+import { OpenHouse, FeedbackForm, Question as QuestionType, UserProfile } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,13 +36,6 @@ const leadSchema = z.object({
   path: ["email"], // Arbitrarily attach error to email field
 });
 
-async function getPublicGiftConfiguration(): Promise<{ brands: GiftbitBrand[] }> {
-    // This function will run on the client, so we don't have access to adminDb or env vars here.
-    // The logic to fetch brands needs to be carefully handled, perhaps via a dedicated server action if needed.
-    // For now, let's assume we might need a different mechanism for public pages.
-    return { brands: [] }; // Returning empty for now to avoid errors.
-}
-
 
 export default function VisitorFeedbackPage() {
   const { userId } = useParams();
@@ -55,7 +48,6 @@ export default function VisitorFeedbackPage() {
   const [realtor, setRealtor] = useState<UserProfile | null>(null);
   const [activeHouse, setActiveHouse] = useState<OpenHouse | null>(null);
   const [formTemplate, setFormTemplate] = useState<FeedbackForm | null>(null);
-  const [giftBrand, setGiftBrand] = useState<GiftbitBrand | null>(null);
   
   const [feedbackSubmissionId, setFeedbackSubmissionId] = useState<string | null>(null);
 
@@ -102,16 +94,6 @@ export default function VisitorFeedbackPage() {
         if (userDocSnap.exists()) {
             const realtorData = userDocSnap.data() as UserProfile;
             setRealtor(realtorData);
-
-            // If gifts are enabled, fetch the specific brand details
-            if (houseData.isGiftEnabled && houseData.giftBrandCode) {
-                try {
-                    // Public gift config is tricky; for now, we assume this info is public or fetched differently.
-                    // This might need a dedicated server action later.
-                } catch(e) {
-                    console.warn("Could not fetch gift brand details for visitor page", e);
-                }
-            }
         }
         
         if (houseData.feedbackFormId) {
@@ -189,7 +171,7 @@ export default function VisitorFeedbackPage() {
         const lowerCaseEmail = data.email?.toLowerCase();
         const rawPhone = data.phone?.replace(/\D/g, '');
         
-        const newLeadData: Omit<Lead, 'id'> = {
+        const newLeadData: Omit<any, 'id'> = {
             name: data.name,
             email: lowerCaseEmail,
             phone: rawPhone,
@@ -421,15 +403,19 @@ export default function VisitorFeedbackPage() {
   };
   
   const GiftBanner = () => {
-    if (!activeHouse?.isGiftEnabled || !giftBrand) return null;
+    if (!activeHouse?.isGiftEnabled) return null;
     
+    const giftAmountText = activeHouse.giftAmountInCents
+        ? `a $${(activeHouse.giftAmountInCents / 100).toFixed(2)} ${activeHouse.giftBrandName || 'gift card'}`
+        : 'a small gift';
+        
     return (
         <div className="bg-yellow-100/60 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800/60 rounded-lg p-3 flex items-center gap-4">
-            <div className="w-12 h-12 relative bg-white rounded-md border flex items-center justify-center flex-shrink-0">
-                <Image src={giftBrand.image_url} alt={giftBrand.name} fill className="object-contain p-1" data-ai-hint="company logo"/>
+            <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                <Gift className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
             </div>
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                Provide your feedback and receive a small gift as a thank you!
+                Provide your feedback and receive {giftAmountText} as a thank you!
             </p>
         </div>
     )
@@ -728,5 +714,3 @@ export default function VisitorFeedbackPage() {
     </div>
   );
 }
-
-    

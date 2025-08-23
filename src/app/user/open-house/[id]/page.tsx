@@ -359,12 +359,15 @@ export default function OpenHouseDetailPage() {
         if (data.isGiftEnabled && data.giftAmount) {
             amountInCents = Math.round(parseFloat(data.giftAmount) * 100);
         }
+        
+        const selectedBrand = brands.find(b => b.brand_code === data.giftBrandCode);
 
         const houseDocRef = doc(db, 'openHouses', openHouse.id);
         try {
             await updateDoc(houseDocRef, {
                 isGiftEnabled: data.isGiftEnabled,
                 giftBrandCode: data.isGiftEnabled ? data.giftBrandCode : null,
+                giftBrandName: data.isGiftEnabled ? selectedBrand?.name : null,
                 giftAmountInCents: data.isGiftEnabled ? amountInCents : null,
             });
             await fetchOpenHouseData();
