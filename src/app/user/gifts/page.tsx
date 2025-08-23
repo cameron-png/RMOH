@@ -44,7 +44,8 @@ export default function GiftsPage() {
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
-  const [brands, setBrands] = useState<GiftbitBrand[]>([]);
+  const [allBrands, setAllBrands] = useState<GiftbitBrand[]>([]);
+  const [enabledBrands, setEnabledBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
 
@@ -71,7 +72,7 @@ export default function GiftsPage() {
   });
   
   const handleBrandChange = (brandCode: string) => {
-    const brand = brands.find(b => b.brand_code === brandCode);
+    const brand = allBrands.find(b => b.brand_code === brandCode);
     setSelectedBrand(brand || null);
     form.setValue('brand', brandCode);
     form.setValue('amount', ''); // Reset amount when brand changes
@@ -146,8 +147,8 @@ export default function GiftsPage() {
 
       setLoadingBrands(true);
       try {
-        const { brands } = await getGiftConfigurationForUser();
-        setBrands(brands);
+        const { brands: enabled } = await getGiftConfigurationForUser();
+        setEnabledBrands(enabled);
       } catch (error) {
         toast({
           variant: 'destructive',
@@ -383,7 +384,7 @@ export default function GiftsPage() {
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                 </div>
                                             ) : (
-                                                brands.map((brand) => (
+                                                enabledBrands.map((brand) => (
                                                     <SelectItem key={brand.brand_code} value={brand.brand_code}>
                                                     {brand.name}
                                                     </SelectItem>
@@ -402,7 +403,7 @@ export default function GiftsPage() {
                                 <FormItem>
                                     <FormLabel>Amount</FormLabel>
                                     <FormControl>
-                                        <div>
+                                        <div id="amount-input-container">
                                             <div className="flex gap-2">
                                                 <AmountButton value={5} />
                                                 <AmountButton value={10} />
@@ -489,7 +490,7 @@ export default function GiftsPage() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Brand:</span>
-                                        <span className="font-medium">{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
+                                        <span className="font-medium">{allBrands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
                                     </div>
                                     {house && (
                                         <div className="flex justify-between items-center text-muted-foreground">
@@ -570,7 +571,7 @@ export default function GiftsPage() {
                                     <TableCell>{formatCurrency(gift.amountInCents)}</TableCell>
                                     <TableCell>
                                         {gift.brandCode ? (
-                                            <span>{brands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
+                                            <span>{allBrands.find(b => b.brand_code === gift.brandCode)?.name || gift.brandCode}</span>
                                         ) : (
                                             <span>-</span>
                                         )}
@@ -678,3 +679,5 @@ export default function GiftsPage() {
     </>
   );
 }
+
+    
