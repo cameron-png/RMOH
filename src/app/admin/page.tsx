@@ -970,7 +970,7 @@ export default function AdminPage() {
                         </div>
                         <div className="space-y-4">
                           {fields.map((field, index) => (
-                            <Card key={field.id} className="p-4 bg-muted/50 relative transition-all">
+                            <Card key={field.id} className="p-4 bg-muted relative transition-all">
                               <div className="flex justify-between items-start gap-4">
                                 <div className="flex-grow space-y-4">
                                   <FormField control={form.control} name={`questions.${index}.text`} render={({ field }) => (
