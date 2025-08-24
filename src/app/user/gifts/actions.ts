@@ -44,7 +44,7 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
             enabledBrandCodes.includes(brand.brand_code)
         );
         
-        // Failsafe: If the filtering results in an empty list, return all US brands.
+        // Failsafe: If the filtering results in an empty list because of stale settings, return all US brands.
         if (enabledBrands.length === 0) {
             return { brands: usBrands };
         }
@@ -57,12 +57,12 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
 }
 
 
-async function createDirectLink(gift: Gift): Promise<any> {
+async function createGiftbitGift(gift: Gift): Promise<any> {
     if (!GIFTBIT_API_KEY) {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
     }
     
-    const response = await fetch(`${GIFTBIT_BASE_URL}/direct_links`, {
+    const response = await fetch(`${GIFTBIT_BASE_URL}/gifts`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
@@ -71,8 +71,10 @@ async function createDirectLink(gift: Gift): Promise<any> {
         body: JSON.stringify({
             id: gift.id, // Use Firestore doc ID for idempotency
             price_in_cents: gift.amountInCents,
-            brand_codes: [gift.brandCode],
-            link_count: 1,
+            brand_code: gift.brandCode,
+            delivery_format: "SHORT_LINK", // We need the link to email ourselves
+            recipient_name: gift.recipientName,
+            recipient_email: gift.recipientEmail,
         }),
     });
 
@@ -122,11 +124,11 @@ export async function processGift(giftId: string) {
         })());
 
 
-        // 1. Create the direct link order
-        const orderResponse = await createDirectLink(gift);
+        // 1. Create the gift order
+        const orderResponse = await createGiftbitGift(gift);
         
         // 2. Extract the claim URL from the response
-        const claimUrl = orderResponse?.direct_links?.[0];
+        const claimUrl = orderResponse?.gift?.short_link;
 
         if (!claimUrl) {
             console.error('No claim URL found in Giftbit response for gift:', gift.id, 'Response:', orderResponse);

@@ -18,7 +18,7 @@ function serializeTimestamps(obj: any): any {
         return obj.map(serializeTimestamps);
     }
     if (typeof obj === 'object') {
-        const newObj: { [key: string]: any } = {};
+        const newObj: { [key:string]: any } = {};
         for (const key in obj) {
             newObj[key] = serializeTimestamps(obj[key]);
         }
@@ -79,47 +79,68 @@ export async function saveGiftbitSettings(settings: GiftbitSettings): Promise<{ 
 
 
 export async function getAdminGiftData(): Promise<AdminGift[]> {
-    if (!GIFTBIT_API_KEY) {
-        console.log('GIFTBIT_API_KEY is not configured on the server. Skipping Giftbit API call.');
-    }
-
     try {
-        const [giftsSnapshot, usersSnapshot, giftbitRewardsResponse, allBrandsResponse] = await Promise.all([
+        // Step 1: Fetch internal data from Firestore in parallel
+        const [giftsSnapshot, usersSnapshot] = await Promise.all([
             adminDb.collection('gifts').orderBy('createdAt', 'desc').get(),
             adminDb.collection('users').get(),
-            GIFTBIT_API_KEY ? fetch(`${GIFTBIT_BASE_URL}/gifts?limit=500`, { 
-                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-                next: { revalidate: 60 } 
-            }) : Promise.resolve(null),
-            GIFTBIT_API_KEY ? getAvailableGiftbitBrands() : Promise.resolve({ brands: [] }),
         ]);
 
         const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as UserProfile]));
         const giftsFromDb = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
-        const allBrandsMap = new Map((allBrandsResponse.brands || []).map(b => [b.brand_code, b.name]));
-        
+
+        // Step 2: Fetch external data from Giftbit if API key is present
         let giftbitRewardsMap = new Map();
-        if (giftbitRewardsResponse && giftbitRewardsResponse.ok) {
-            const giftbitData = await giftbitRewardsResponse.json();
-            (giftbitData.gifts || []).forEach((reward: any) => {
-                giftbitRewardsMap.set(reward.uuid, reward);
-            });
-        } else if (giftbitRewardsResponse) {
-             console.error('Giftbit API Error:', {
-                status: giftbitRewardsResponse.status,
-                body: await giftbitRewardsResponse.text(),
-            });
+        let allBrandsMap = new Map();
+
+        if (GIFTBIT_API_KEY) {
+            try {
+                const [allBrandsResponse, giftbitRewardsResponse] = await Promise.all([
+                    getAvailableGiftbitBrands(),
+                    fetch(`${GIFTBIT_BASE_URL}/reports/gifts_created`, {
+                        method: 'POST',
+                        headers: { 
+                            'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ limit: 500 }), // Fetch up to 500 for the admin view
+                        next: { revalidate: 60 } // Revalidate every minute
+                    })
+                ]);
+                
+                // Process brands
+                (allBrandsResponse.brands || []).forEach(b => allBrandsMap.set(b.brand_code, b.name));
+
+                // Process gifts report
+                if (giftbitRewardsResponse.ok) {
+                    const giftbitData = await giftbitRewardsResponse.json();
+                    (giftbitData.gifts_created || []).forEach((reward: any) => {
+                        giftbitRewardsMap.set(reward.gift_uuid, reward);
+                    });
+                } else {
+                    console.error('Giftbit API Error fetching reports/gifts_created:', {
+                        status: giftbitRewardsResponse.status,
+                        body: await giftbitRewardsResponse.text(),
+                    });
+                }
+            } catch (apiError: any) {
+                console.error("Error fetching data from Giftbit API:", apiError.message);
+                // Continue execution without Giftbit data if the API fails
+            }
+        } else {
+             console.log('GIFTBIT_API_KEY is not configured on the server. Skipping Giftbit API calls.');
         }
-        
+
+        // Step 3: Combine all data
         const combinedGifts = giftsFromDb.map(gift => {
             const sender = usersMap.get(gift.userId);
             const giftbitReward = giftbitRewardsMap.get(gift.id);
-
+            
             return {
                 ...gift,
                 senderName: sender?.name || 'Unknown User',
                 senderEmail: sender?.email || 'N/A',
-                brandName: allBrandsMap.get(gift.brandCode) || gift.brandCode,
+                brandName: giftbitReward?.brand_name || allBrandsMap.get(gift.brandCode) || gift.brandCode,
                 giftbitStatus: giftbitReward?.status,
                 giftbitRedeemedDate: giftbitReward?.redeemed_date,
             };
@@ -229,5 +250,3 @@ export async function resetApplicationSettings(): Promise<{ success: boolean; me
     return { success: false, message: 'An unexpected error occurred during the settings reset.' };
   }
 }
-
-    
