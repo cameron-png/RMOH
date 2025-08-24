@@ -200,7 +200,8 @@ export async function getGiftbitBalance(): Promise<number | null> {
                 status: response.status,
                 body: await response.text(),
             });
-            throw new Error('Failed to fetch balance from Giftbit.');
+            // Return null instead of throwing an error to prevent page crash
+            return null;
         }
 
         const data = await response.json();
