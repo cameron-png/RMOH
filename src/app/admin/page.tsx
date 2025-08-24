@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -27,7 +26,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAvailableGiftbitBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings } from './actions';
+import { getAvailableGiftbitBrands, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings } from './actions';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -309,14 +308,17 @@ export default function AdminPage() {
   
   const handleSaveGiftbitSettings = async () => {
     setIsSavingGiftbit(true);
-    const settings: GiftbitSettings = { enabledBrandCodes };
-    const result = await saveGiftbitSettings(settings);
-    if (result.success) {
+    try {
+        const settings: GiftbitSettings = { enabledBrandCodes };
+        const settingsDocRef = doc(db, 'settings', 'appDefaults');
+        await setDoc(settingsDocRef, { giftbit: settings }, { merge: true });
         toast({ title: "Giftbit settings saved successfully!" });
-    } else {
-        toast({ variant: "destructive", title: "Error", description: result.message });
+    } catch (error) {
+        console.error("Error saving Giftbit settings:", error);
+        toast({ variant: "destructive", title: "Error", description: "Failed to save settings." });
+    } finally {
+        setIsSavingGiftbit(false);
     }
-    setIsSavingGiftbit(false);
   };
 
   const handleCancelGift = async () => {

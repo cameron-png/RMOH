@@ -64,17 +64,6 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
     }
 }
 
-export async function saveGiftbitSettings(settings: GiftbitSettings): Promise<{ success: boolean; message?: string }> {
-    try {
-        const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
-        await settingsDocRef.set({ giftbit: settings }, { merge: true });
-        return { success: true };
-    } catch (error: any) {
-        console.error("Error saving Giftbit settings:", error);
-        return { success: false, message: 'Failed to save settings.' };
-    }
-}
-
 
 export async function getAdminGiftData(): Promise<AdminGift[]> {
     try {
