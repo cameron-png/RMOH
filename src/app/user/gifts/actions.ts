@@ -22,7 +22,7 @@ const giftFormSchema = z.object({
 });
 
 
-async function createGiftbitGift(gift: Gift): Promise<any> {
+async function createGiftbitGift(gift: Gift): Promise<{ claimUrl: string }> {
     if (!GIFTBIT_API_KEY) {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
     }
@@ -48,22 +48,28 @@ async function createGiftbitGift(gift: Gift): Promise<any> {
         throw new Error(`Giftbit API request failed with status ${response.status}`);
     }
 
-    return await response.json();
+    const orderResponse = await response.json();
+    const claimUrl = orderResponse?.direct_links?.[0];
+
+    if (!claimUrl) {
+        console.error('No claim URL found in Giftbit response for gift:', gift.id, 'Response:', orderResponse);
+        throw new Error(`Link generation failed for gift ${gift.id}. No URL in response.`);
+    }
+
+    return { claimUrl };
 }
 
 interface SendManualGiftParams extends z.infer<typeof giftFormSchema> {
     userId: string;
 }
 
-export async function sendManualGift(params: SendManualGiftParams): Promise<{ success: boolean; message?: string; }> {
+export async function sendManualGift(params: SendManualGiftParams): Promise<{ success: boolean; giftId?: string; message?: string; }> {
     const { userId, ...giftData } = params;
 
     if (!userId) {
         return { success: false, message: "User not authenticated." };
     }
-
-    const giftId = uuidv4();
-    const giftRef = adminDb.collection('gifts').doc(giftId);
+    
     const userRef = adminDb.collection('users').doc(userId);
 
     try {
@@ -86,8 +92,7 @@ export async function sendManualGift(params: SendManualGiftParams): Promise<{ su
         const enabledBrands = settings?.giftbit?.enabledBrands || [];
         const selectedBrandData = enabledBrands.find((b: GiftbitBrand) => b.brand_code === giftData.brandCode);
         
-        const newGiftForApi: Gift = {
-            id: giftId,
+        const newGift: Omit<Gift, 'id'> = {
             userId: userId,
             recipientName: giftData.recipientName,
             recipientEmail: giftData.recipientEmail,
@@ -96,65 +101,75 @@ export async function sendManualGift(params: SendManualGiftParams): Promise<{ su
             amountInCents: amountInCents,
             message: giftData.message,
             type: 'Manual',
-            status: 'Sent', // Will be sent immediately
-            claimUrl: null, // To be filled
+            status: 'Pending',
+            claimUrl: null,
             createdAt: Timestamp.now(),
         };
 
-        // 1. Create the gift order with Giftbit
-        const orderResponse = await createGiftbitGift(newGiftForApi);
+        const giftRef = await adminDb.collection('gifts').add(newGift);
         
-        // 2. Extract the claim URL from the response
-        const claimUrl = orderResponse?.direct_links?.[0];
+        return { success: true, giftId: giftRef.id, message: "Gift successfully queued." };
 
-        if (!claimUrl) {
-            console.error('No claim URL found in Giftbit response for gift:', giftId, 'Response:', orderResponse);
-            throw new Error(`Link generation failed for gift ${giftId}. No URL in response.`);
+    } catch (error: any) {
+        console.error(`Failed to create pending gift:`, error);
+        return { success: false, message: error.message || 'An unexpected error occurred.' };
+    }
+}
+
+export async function processGift(giftId: string): Promise<{ success: boolean; message?: string }> {
+    const giftRef = adminDb.collection('gifts').doc(giftId);
+    
+    try {
+        const giftDoc = await giftRef.get();
+        if (!giftDoc.exists) throw new Error('Gift not found.');
+        
+        const gift = { id: giftDoc.id, ...giftDoc.data() } as Gift;
+        const userRef = adminDb.collection('users').doc(gift.userId);
+
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) throw new Error('Sender profile not found.');
+        const user = { id: userDoc.id, ...userDoc.data() } as UserProfile;
+
+        if ((user.availableBalance || 0) < gift.amountInCents) {
+            await giftRef.update({ status: 'Failed' });
+            return { success: false, message: 'Insufficient funds at time of processing.' };
         }
-        
-        newGiftForApi.claimUrl = claimUrl;
 
-        // 3. Update gift in Firestore, deduct balance, and create transaction atomically
+        // 1. Create the gift order with Giftbit
+        const { claimUrl } = await createGiftbitGift(gift);
+        
+        // 2. Update gift in Firestore, deduct balance, and create transaction atomically
         const newTransactionRef = adminDb.collection('transactions').doc();
         const newTransaction: Omit<Transaction, 'id'> = {
             userId: user.id,
             type: 'Deduction',
-            amountInCents: amountInCents,
-            description: `Gift to ${giftData.recipientName} (${giftData.recipientEmail})`,
+            amountInCents: gift.amountInCents,
+            description: `Gift to ${gift.recipientName} (${gift.recipientEmail})`,
             createdAt: Timestamp.now(),
-            giftId: giftId,
+            giftId: gift.id,
             createdById: user.id,
         };
         
         await adminDb.runTransaction(async (transaction) => {
-             transaction.update(userRef, {
-                availableBalance: FieldValue.increment(-amountInCents)
-            });
-            transaction.set(giftRef, newGiftForApi);
+            transaction.update(userRef, { availableBalance: FieldValue.increment(-gift.amountInCents) });
+            transaction.update(giftRef, { status: 'Sent', claimUrl: claimUrl });
             transaction.set(newTransactionRef, newTransaction);
         });
 
-        // 4. Send email to recipient
-        await sendGiftEmail({
-            ...newGiftForApi,
-            sender: user,
-        });
+        // 3. Send email to recipient
+        await sendGiftEmail({ ...gift, claimUrl, sender: user });
         
-        // 5. Check for low balance and send notification if needed
-        const newBalance = (user.availableBalance || 0) - amountInCents;
+        // 4. Check for low balance and send notification if needed
+        const newBalance = (user.availableBalance || 0) - gift.amountInCents;
         if (newBalance < LOW_BALANCE_THRESHOLD) {
-            await sendLowBalanceEmail({ user: { ...user, id: userId }, currentBalanceInCents: newBalance });
+            await sendLowBalanceEmail({ user: user, currentBalanceInCents: newBalance });
         }
         
         return { success: true, message: "Gift sent successfully!" };
 
     } catch (error: any) {
         console.error(`Failed to process gift ${giftId}:`, error);
-        // Attempt to mark as failed if it was partially processed
-        const giftDoc = await giftRef.get();
-        if (giftDoc.exists) {
-            await giftRef.update({ status: 'Failed', claimUrl: null });
-        }
+        await giftRef.update({ status: 'Failed', claimUrl: null });
         return { success: false, message: error.message || 'An unexpected error occurred.' };
     }
 }

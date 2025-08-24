@@ -21,10 +21,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { sendManualGift } from './actions';
+import { sendManualGift, processGift } from './actions';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
+
 
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
@@ -48,6 +50,9 @@ export default function GiftsPage() {
 
   const [customAmount, setCustomAmount] = useState('');
   const [showCustomAmount, setShowCustomAmount] = useState(false);
+
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [giftToConfirm, setGiftToConfirm] = useState<Gift | null>(null);
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
     resolver: zodResolver(giftFormSchema),
@@ -157,60 +162,29 @@ export default function GiftsPage() {
   
   const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Allow digits and a single decimal point
     const numericValue = value.replace(/[^0-9.]/g, '');
     const parts = numericValue.split('.');
+    if (parts.length > 2 || (parts[1] && parts[1].length > 2)) return;
+    setCustomAmount(numericValue);
+    form.setValue('amount', numericValue);
+}
 
-    if (parts.length > 2) {
-      // More than one decimal point, ignore last input
-      return;
-    }
-
-    if (parts[1] && parts[1].length > 2) {
-      // Limit to 2 decimal places
-      parts[1] = parts[1].substring(0, 2);
-    }
-    
-    const finalValue = parts.join('.');
-    setCustomAmount(finalValue);
-    form.setValue('amount', finalValue);
-  }
-  
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
-    if (!user) {
-        toast({
-            variant: 'destructive',
-            title: 'Authentication Error',
-            description: 'Could not find user information. Please try again.',
-        });
-        return;
-    }
-    const amountInCents = Math.round(parseFloat(values.amount.replace(/[^0-9.]/g, '')) * 100);
-        
-    if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
-        toast({
-            variant: 'destructive',
-            title: 'Insufficient Funds',
-            description: 'You do not have enough funds to create this gift.',
-        });
-        return;
-    }
+    if (!user) return;
 
     try {
-        const result = await sendManualGift({...values, userId: user.uid, amount: (amountInCents / 100).toString()});
-        
-        if (result.success) {
-            toast({
-                title: 'Gift Sent!',
-                description: 'The gift has been successfully sent to the recipient.',
-            });
-            setIsFormOpen(false); // Close the creation form
+        const result = await sendManualGift({...values, userId: user.uid});
+        if (result.success && result.giftId) {
+            setIsFormOpen(false);
             form.reset();
-            await refreshUserData();
+            const newGiftDoc = await getDoc(doc(db, 'gifts', result.giftId));
+            if (newGiftDoc.exists()) {
+                setGiftToConfirm({ id: newGiftDoc.id, ...newGiftDoc.data() } as Gift);
+            }
         } else {
             toast({
                 variant: 'destructive',
-                title: 'Gift Failed',
+                title: 'Gift Creation Failed',
                 description: result.message || 'An unexpected error occurred.',
             });
         }
@@ -218,11 +192,37 @@ export default function GiftsPage() {
          toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Could not send the gift. Please try again.',
+            description: 'Could not create the gift. Please try again.',
         });
     }
   }
 
+  const handleConfirmGift = async () => {
+    if (!giftToConfirm) return;
+    setIsConfirming(true);
+    try {
+        const result = await processGift(giftToConfirm.id);
+        if (result.success) {
+            toast({ title: 'Gift Sent!', description: 'The gift has been successfully processed and sent.' });
+            await refreshUserData();
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Gift Failed',
+                description: result.message || 'An unexpected error occurred during processing.',
+            });
+        }
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'A critical error occurred while processing the gift.',
+        });
+    } finally {
+        setIsConfirming(false);
+        setGiftToConfirm(null);
+    }
+  };
   
   return (
     <>
@@ -360,7 +360,7 @@ export default function GiftsPage() {
                                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={form.formState.isSubmitting}>
                                      <Send className="mr-2 h-4 w-4" />
-                                    {form.formState.isSubmitting ? 'Sending...' : 'Send Gift'}
+                                    {form.formState.isSubmitting ? 'Creating...' : 'Create Gift'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -417,7 +417,7 @@ export default function GiftsPage() {
                                 </CardContent>
                                 <CardFooter className="flex gap-2">
                                      {gift.status === 'Pending' ? (
-                                        <span className="text-sm text-muted-foreground">This gift was queued from an open house and requires confirmation.</span>
+                                        <Button onClick={() => setGiftToConfirm(gift)} className="w-full">Confirm & Send</Button>
                                      ) : gift.claimUrl ? (
                                         <Button variant="outline" size="sm" asChild className="w-full">
                                             <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer">
@@ -493,7 +493,7 @@ export default function GiftsPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {gift.status === 'Pending' ? (
-                                            <span className="text-muted-foreground text-xs">Awaiting confirmation</span>
+                                            <Button size="sm" onClick={() => setGiftToConfirm(gift)}>Confirm & Send</Button>
                                         ) : gift.claimUrl ? (
                                             <Button variant="ghost" size="icon" asChild>
                                                 <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer" aria-label="Open Gift Link">
@@ -522,6 +522,26 @@ export default function GiftsPage() {
             </CardContent>
         </Card>
     </div>
+    
+    {giftToConfirm && (
+        <AlertDialog open={!!giftToConfirm} onOpenChange={() => setGiftToConfirm(null)}>
+            <AlertDialogContent>
+                 <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Gift</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        You are about to send a <strong>{formatCurrency(giftToConfirm.amountInCents)} {giftToConfirm.brandName}</strong> gift card to <strong>{giftToConfirm.recipientName}</strong> ({giftToConfirm.recipientEmail}). The cost will be deducted from your available balance. This cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <DialogFooter>
+                    <AlertDialogCancel disabled={isConfirming}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmGift} disabled={isConfirming}>
+                        {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isConfirming ? 'Processing...' : 'Confirm & Send'}
+                    </AlertDialogAction>
+                </DialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )}
     </>
   );
 }
