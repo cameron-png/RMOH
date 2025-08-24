@@ -127,7 +127,7 @@ async function processGift(giftId: string, authenticatedUserId: string) {
             transaction.update(giftRef, {
                 status: 'Sent',
                 claimUrl: claimUrl,
-                brandName: brandName,
+                brandName: brandName, // Ensure brandName is saved
             });
             transaction.set(newTransactionRef, newTransaction);
         });
@@ -252,5 +252,3 @@ export async function declinePendingGift(giftId: string, userId: string): Promis
         return { success: false, message: 'Failed to decline the gift.' };
     }
 }
-
-    
