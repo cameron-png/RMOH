@@ -199,11 +199,19 @@ export default function OpenHouseDetailPage() {
   }, [openHouse, addressForm]);
 
   useEffect(() => {
+    async function loadConfiguration() {
       setLoadingBrands(true);
-      getGiftConfigurationForUser()
-        .then(({ brands }) => setBrands(brands))
-        .catch(() => toast({ variant: 'destructive', title: 'Error', description: 'Could not load gift brands.' }))
-        .finally(() => setLoadingBrands(false));
+      try {
+        const { brands } = await getGiftConfigurationForUser();
+        setBrands(brands);
+      } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load gift brands.' });
+      } finally {
+        setLoadingBrands(false);
+      }
+    }
+    loadConfiguration();
   }, [toast]);
 
   useEffect(() => {
@@ -827,5 +835,3 @@ export default function OpenHouseDetailPage() {
     </>
   );
 }
-
-    

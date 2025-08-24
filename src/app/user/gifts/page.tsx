@@ -142,25 +142,24 @@ export default function GiftsPage() {
 
   useEffect(() => {
     async function loadConfiguration() {
-      if (!user) return;
-
       setLoadingBrands(true);
       try {
         const { brands } = await getGiftConfigurationForUser();
         setEnabledBrands(brands);
       } catch (error) {
+        console.error(error);
         toast({
           variant: 'destructive',
           title: 'Error',
           description: 'Could not load available gift brands.',
         });
-        setEnabledBrands([]); // Ensure it's an empty array on error
+        setEnabledBrands([]);
       } finally {
         setLoadingBrands(false);
       }
     }
-    if(user){
-        loadConfiguration();
+    if (user) {
+      loadConfiguration();
     }
   }, [toast, user]);
 
@@ -679,5 +678,3 @@ export default function GiftsPage() {
     </>
   );
 }
-
-    
