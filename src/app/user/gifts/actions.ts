@@ -39,10 +39,8 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
         const brandsData = await brandsResponse.json();
         const allBrands: GiftbitBrand[] = brandsData.brands || [];
         
-        // Filter all brands by region and then by what's enabled.
-        const enabledBrands = allBrands
-            .filter(brand => brand.region_codes.includes('us'))
-            .filter(brand => enabledBrandCodes.includes(brand.brand_code));
+        // Filter all brands by what's enabled in the admin settings.
+        const enabledBrands = allBrands.filter(brand => enabledBrandCodes.includes(brand.brand_code));
         
         return { brands: enabledBrands };
     } catch (error: any) {
