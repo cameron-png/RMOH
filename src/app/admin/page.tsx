@@ -125,7 +125,7 @@ export default function AdminPage() {
       const newUsers7Days = usersData.filter(u => u.createdAt && u.createdAt >= sevenDaysAgo).length;
 
       // Process Open Houses
-      const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpenHouse);
+      const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpenHouse));
       setOpenHouses(openHousesData);
       const newOpenHouses7Days = openHousesData.filter(h => h.createdAt && h.createdAt >= sevenDaysAgo).length;
       
