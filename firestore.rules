@@ -2,104 +2,67 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // UTILITY: Check if user is an admin by checking for a custom token claim.
-    function isAdmin(request) {
-      return request.auth != null && request.auth.token.admin == true;
-    }
-    
-    // UTILITY: Check if user is the owner of a resource
-    function isOwner(request, resource) {
-      return request.auth != null && request.auth.uid == resource.data.userId;
+  
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    //----------------------------------------------------------------------
-    //  PUBLIC VISITOR ACCESS
-    //----------------------------------------------------------------------
-    match /openHouses/{houseId} {
-      // Allow anyone to query for the active open house. The query itself is secured on the client-side.
-      allow list: if true;
-      // Allow anyone to get a single open house document to view its details.
-      allow get: if true;
-      // Only the owner or an admin can create, update, or delete.
-      allow write: if request.auth != null && (isOwner(request, resource) || isAdmin(request));
-    }
-
+    // Users can read their own profile, admins can read any profile.
+    // Users can create their own profile upon signup.
+    // Users can update their own profile.
     match /users/{userId} {
-      // Allow anyone to get a user's public profile (for the visitor page).
-      allow get: if true;
-      // Allow an authenticated user to create their own record or an admin to create one.
-      allow create: if request.auth != null && (request.auth.uid == userId || isAdmin(request));
-      // Allow a user to update their own profile, or an admin to update any profile.
-      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin(request));
-      // Only admins can delete users.
-      allow delete: if isAdmin(request);
-      // Admins can list all users.
-      allow list: if isAdmin(request);
+      allow read: if request.auth.uid == userId || isAdmin();
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
     }
     
-    match /feedbackForms/{formId} {
-        // Allow anyone to get a form (for the visitor page).
-        allow get: if true;
-        // Allow authenticated users to list their own custom forms and all global forms.
-        allow list: if request.auth != null;
-        // Admins can do anything.
-        allow read, write: if isAdmin(request);
-        // Authenticated users can create/update/delete their own custom forms.
-        allow create, update, delete: if request.auth != null && isOwner(request, resource);
-    }
-
-    //----------------------------------------------------------------------
-    //  SUBMISSION ACCESS
-    //----------------------------------------------------------------------
-    match /leads/{leadId} {
-        // Allow anyone to create a lead.
-        allow create: if true;
-        // Only the owner or an admin can read/update/delete their leads.
-        allow read, update, delete: if request.auth != null && (isOwner(request, resource) || isAdmin(request));
-        // Admins can list all leads
-        allow list: if isAdmin(request);
-    }
-
-    match /feedbackSubmissions/{submissionId} {
-        // Allow anyone to create a feedback submission.
-        allow create: if true;
-        // Only the owner or an admin can read/update/delete.
-        allow read, update, delete: if request.auth != null && (isOwner(request, resource) || isAdmin(request));
-        // Admins can list all submissions
-        allow list: if isAdmin(request);
-    }
-    
-    //----------------------------------------------------------------------
-    //  SECURE ACCESS
-    //----------------------------------------------------------------------
-    match /settings/{docId} {
-      // Admins can read and write all settings.
-      allow read, write: if isAdmin(request);
-    }
-    
-    match /gifts/{giftId} {
-      // User can create their own gift record (status will be pending)
-      allow create: if request.auth != null && isOwner(request, request.resource);
-      // User can read their own gifts, admins can read all gifts.
-      allow read: if request.auth != null && (isOwner(request, resource) || isAdmin(request));
-      // Gift updates (like status changes) are handled by server actions, so deny client updates.
-      allow update: if false;
-       // Admins can cancel gifts via server actions that use admin SDK, but we'll allow admin client writes for flexibility.
-      allow write: if isAdmin(request);
-      // Admins can list all gifts.
-      allow list: if isAdmin(request);
-    }
-    
+    // Admins can read all transactions. Users can read their own.
+    // Only backend processes can create transactions.
     match /transactions/{transactionId} {
-      // Transactions are created by the server. Deny client creation.
-      allow create: if false;
-      // Users can only read their own transactions. Admins can read any.
-      allow read: if request.auth != null && (isOwner(request, resource) || isAdmin(request));
-      // Transactions are immutable.
-      allow update, delete: if false;
-      // Allow users to list their own transactions. Admins can list all.
-      allow list: if request.auth != null;
+      allow read: if isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.id == resource.data.userId;
+      allow create, update, delete: if false; // Server-side only
+    }
+
+    // Users can manage their own open houses. Admins can read all.
+    match /openHouses/{houseId} {
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+      allow create, update, delete: if request.auth.uid == resource.data.userId;
+    }
+    
+    // Users can manage their own leads. Admins can read all.
+    match /leads/{leadId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId || isAdmin();
+      // Anyone can create a lead (from the public visitor page)
+      allow create: if true;
+    }
+
+    // Custom forms are managed by their owner. Global forms can be read by anyone.
+    // Admins can read all forms.
+    match /feedbackForms/{formId} {
+       allow read: if resource.data.type == 'global' || request.auth.uid == resource.data.userId || isAdmin();
+       allow create, update, delete: if request.auth.uid == resource.data.userId;
+    }
+    
+    // Users can manage feedback for their properties. Admins can read all.
+    // Anyone can create feedback (from the public visitor page)
+    match /feedbackSubmissions/{submissionId} {
+        allow read: if request.auth.uid == resource.data.userId || isAdmin();
+        allow create: if true;
+    }
+    
+    // App settings can be read by any authenticated user, but only managed by admins.
+    match /settings/{docId} {
+        allow read: if request.auth != null || isAdmin();
+        allow write: if isAdmin();
+    }
+    
+    // Users can manage their own gifts. Admins can read all gifts.
+    // Backend processes create gifts.
+    match /gifts/{giftId} {
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+      allow create, update, delete: if request.auth.uid == resource.data.userId || isAdmin();
     }
   }
 }
