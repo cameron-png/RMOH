@@ -14,6 +14,7 @@ const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBrand[] }> {
     try {
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
+        
         if (!settingsDoc.exists) {
             console.log("No appDefaults document found. Returning no brands.");
             return { brands: [] }; 
@@ -24,8 +25,10 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
         const enabledBrands = settings?.giftbit?.enabledBrands || [];
         
         return { brands: enabledBrands };
+
     } catch (error: any) {
         console.error("Error fetching gift configuration for user:", error.message);
+        // Throw an error to be caught by the client-side, which will show a toast.
         throw new Error("Could not load gift card information.");
     }
 }
