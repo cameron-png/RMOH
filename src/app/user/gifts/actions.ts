@@ -17,15 +17,13 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
     }
     
     try {
-        // First, get enabled brands from app settings using the Admin SDK
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
         const settings = settingsDoc.data() as AppSettings;
         const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
 
-        // Fetch all brands from the Giftbit API
         const brandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
             headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-            next: { revalidate: 3600 } // Revalidate every hour
+            next: { revalidate: 3600 }
         });
 
         if (!brandsResponse.ok) {
@@ -36,18 +34,20 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
         const brandsData = await brandsResponse.json();
         const allBrands: GiftbitBrand[] = brandsData.brands || [];
         
-        // Filter for US brands
         const usBrands = allBrands.filter(brand => brand.region_codes.includes('us'));
 
-        // If no brands are configured in settings (e.g. admin hasn't set any), allow all for that region.
         if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
             return { brands: usBrands };
         }
 
-        // Otherwise, filter the brands from the API based on the admin's enabled list.
         const enabledBrands = usBrands.filter((brand) => 
             enabledBrandCodes.includes(brand.brand_code)
         );
+        
+        // Failsafe: If the filtering results in an empty list, return all US brands.
+        if (enabledBrands.length === 0) {
+            return { brands: usBrands };
+        }
         
         return { brands: enabledBrands };
     } catch (error: any) {
@@ -111,13 +111,15 @@ export async function processGift(giftId: string) {
             }
         }
 
-        // Fetch brand details to get the brand name
-        const brandResponse = await fetch(`${GIFTBIT_BASE_URL}/brands/${gift.brandCode}`, {
-            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` }
-        });
-        if (!brandResponse.ok) throw new Error(`Could not fetch brand details for ${gift.brandCode}`);
-        const brandData = await brandResponse.json();
-        const brandName = brandData.brand.name;
+        // Fetch brand details to get the brand name if it's not already on the gift
+        const brandName = gift.brandName || (await (async () => {
+            const brandResponse = await fetch(`${GIFTBIT_BASE_URL}/brands/${gift.brandCode}`, {
+                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` }
+            });
+            if (!brandResponse.ok) throw new Error(`Could not fetch brand details for ${gift.brandCode}`);
+            const brandData = await brandResponse.json();
+            return brandData.brand.name;
+        })());
 
 
         // 1. Create the direct link order
@@ -200,5 +202,3 @@ export async function declinePendingGift(giftId: string): Promise<{ success: boo
     return { success: false, message: 'Failed to decline the gift.' };
   }
 }
-
-    
