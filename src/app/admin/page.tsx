@@ -149,7 +149,7 @@ export default function AdminPage() {
       // Process Settings
       const settingsData = settingsDocSnap.exists() ? settingsDocSnap.data() as AppSettings : {};
       setAppSettings(settingsData);
-      setEnabledBrandCodes(settingsData.giftbit?.enabledBrands?.map(b => b.brand_code) || []);
+      setEnabledBrandCodes(settingsData.giftbit?.enabledBrandCodes || []);
       
       // Fetch external Giftbit data
       getAvailableGiftbitBrands().then(({ brands }) => {
@@ -310,8 +310,7 @@ export default function AdminPage() {
   const handleSaveGiftbitSettings = async () => {
     setIsSavingGiftbit(true);
     try {
-        const enabledBrands = allBrands.filter(b => enabledBrandCodes.includes(b.brand_code));
-        const settings: GiftbitSettings = { enabledBrands };
+        const settings: GiftbitSettings = { enabledBrandCodes };
         const settingsDocRef = doc(db, 'settings', 'appDefaults');
         
         await setDoc(settingsDocRef, { giftbit: settings }, { merge: true });
