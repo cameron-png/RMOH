@@ -82,7 +82,6 @@ export default function OpenHouseDetailPage() {
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
-  const [showCustomAmount, setShowCustomAmount] = useState(false);
   
 
   const id = params.id as string;
@@ -225,9 +224,6 @@ export default function OpenHouseDetailPage() {
       if (openHouse.giftBrandCode) {
         const brand = brands.find(b => b.brand_code === openHouse.giftBrandCode);
         setSelectedBrand(brand || null);
-      }
-      if (openHouse.giftAmountInCents && ![500, 1000, 1500].includes(openHouse.giftAmountInCents)) {
-        setShowCustomAmount(true);
       }
     }
   }, [openHouse, brands, giftAutomationForm]);
@@ -392,35 +388,6 @@ export default function OpenHouseDetailPage() {
         setSelectedBrand(brand || null);
         giftAutomationForm.setValue('giftBrandCode', brandCode, { shouldDirty: true });
         giftAutomationForm.setValue('giftAmount', '', { shouldDirty: true }); // Reset amount on brand change
-        setShowCustomAmount(false);
-    };
-
-    const getAmountDescription = () => {
-        if (!selectedBrand) return "Select a brand to see amount requirements.";
-        if (selectedBrand.denominations_in_cents?.length) {
-            return `Allowed amounts: ${selectedBrand.denominations_in_cents.map(d => `$${(d / 100).toFixed(2)}`).join(', ')}`;
-        }
-        if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
-            return `Amount must be between $${(selectedBrand.min_price_in_cents / 100).toFixed(2)} and $${(selectedBrand.max_price_in_cents / 100).toFixed(2)}.`;
-        }
-        return "Custom amount allowed.";
-    };
-
-    const AmountButton = ({ value }: { value: number }) => {
-        const amountString = value.toString();
-        const currentAmount = giftAutomationForm.getValues('giftAmount');
-        return (
-            <Button
-                type="button"
-                variant={currentAmount === amountString && !showCustomAmount ? 'default' : 'outline'}
-                onClick={() => {
-                    giftAutomationForm.setValue('giftAmount', amountString, { shouldDirty: true, shouldValidate: true });
-                    setShowCustomAmount(false);
-                }}
-            >
-                ${value}
-            </Button>
-        );
     };
   
   if (loading || authLoading) return <p className="text-muted-foreground">Loading details...</p>;
@@ -661,34 +628,12 @@ export default function OpenHouseDetailPage() {
                                         <FormItem>
                                             <FormLabel>Amount</FormLabel>
                                             <FormControl>
-                                                 <div>
-                                                    <div className="flex gap-2">
-                                                        <AmountButton value={5} />
-                                                        <AmountButton value={10} />
-                                                        <AmountButton value={15} />
-                                                        <Button
-                                                            type="button"
-                                                            variant={showCustomAmount ? 'default' : 'outline'}
-                                                            onClick={() => {
-                                                                setShowCustomAmount(true);
-                                                                giftAutomationForm.setValue('giftAmount', '');
-                                                            }}
-                                                        >
-                                                            Custom
-                                                        </Button>
-                                                    </div>
-                                                    {showCustomAmount && (
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="Enter amount"
-                                                            {...field}
-                                                            className="mt-2"
-                                                            autoFocus
-                                                        />
-                                                    )}
-                                                </div>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Enter amount in dollars, e.g., 10.00"
+                                                    {...field}
+                                                />
                                             </FormControl>
-                                            <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}

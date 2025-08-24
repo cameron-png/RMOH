@@ -56,7 +56,6 @@ export default function GiftsPage() {
   
   const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
   const [giftDataToCreate, setGiftDataToCreate] = useState<z.infer<typeof giftFormSchema> | null>(null);
-  const [showCustomAmount, setShowCustomAmount] = useState(false);
 
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
@@ -75,24 +74,8 @@ export default function GiftsPage() {
     setSelectedBrand(brand || null);
     form.setValue('brand', brandCode);
     form.setValue('amount', ''); // Reset amount when brand changes
-    setShowCustomAmount(false);
     form.clearErrors('amount');
   };
-  
-  const getAmountDescription = () => {
-    if (!selectedBrand) return "Select a brand to see amount requirements.";
-
-    if (selectedBrand.denominations_in_cents?.length) {
-      const denominations = selectedBrand.denominations_in_cents.map(d => `$${(d / 100).toFixed(2)}`).join(', ');
-      return `Allowed amounts: ${denominations}`;
-    }
-    if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
-        const min = (selectedBrand.min_price_in_cents / 100).toFixed(2);
-        const max = (selectedBrand.max_price_in_cents / 100).toFixed(2);
-      return `Amount must be between $${min} and $${max}.`;
-    }
-    return "Custom amount allowed.";
-  }
 
   const fetchGiftsAndHouses = useCallback(() => {
     if (!user) return;
@@ -179,21 +162,6 @@ export default function GiftsPage() {
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
     const amountInCents = Math.round(parseFloat(values.amount) * 100);
-
-    // Dynamic validation check
-    if (selectedBrand) {
-        if (selectedBrand.denominations_in_cents?.length) {
-            if (!selectedBrand.denominations_in_cents.includes(amountInCents)) {
-                form.setError('amount', { message: `Amount must be one of the allowed denominations.` });
-                return;
-            }
-        } else if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
-            if (amountInCents < selectedBrand.min_price_in_cents || amountInCents > selectedBrand.max_price_in_cents) {
-                 form.setError('amount', { message: `Amount is outside the allowed range.` });
-                 return;
-            }
-        }
-    }
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
         toast({
@@ -294,23 +262,6 @@ export default function GiftsPage() {
       setGiftToDecline(null);
     }
   };
-
-    const AmountButton = ({ value }: { value: number }) => {
-        const amountString = value.toString();
-        const currentAmount = form.getValues('amount');
-        return (
-            <Button
-                type="button"
-                variant={currentAmount === amountString && !showCustomAmount ? 'default' : 'outline'}
-                onClick={() => {
-                    form.setValue('amount', amountString, { shouldValidate: true });
-                    setShowCustomAmount(false);
-                }}
-            >
-                ${value}
-            </Button>
-        );
-    };
   
   return (
     <>
@@ -327,7 +278,6 @@ export default function GiftsPage() {
                  if (!isOpen) {
                      form.reset();
                      setSelectedBrand(null);
-                     setShowCustomAmount(false);
                  }
              }}>
                 <DialogTrigger asChild>
@@ -405,34 +355,12 @@ export default function GiftsPage() {
                                 <FormItem>
                                     <FormLabel>Amount</FormLabel>
                                     <FormControl>
-                                        <div>
-                                            <div className="flex gap-2">
-                                                <AmountButton value={5} />
-                                                <AmountButton value={10} />
-                                                <AmountButton value={15} />
-                                                <Button
-                                                    type="button"
-                                                    variant={showCustomAmount ? 'default' : 'outline'}
-                                                    onClick={() => {
-                                                        setShowCustomAmount(true);
-                                                        form.setValue('amount', '');
-                                                    }}
-                                                >
-                                                    Custom
-                                                </Button>
-                                            </div>
-                                            {showCustomAmount && (
-                                                <Input 
-                                                    type="number" 
-                                                    placeholder="Enter amount" 
-                                                    {...field}
-                                                    className="mt-2"
-                                                    autoFocus
-                                                />
-                                            )}
-                                        </div>
+                                        <Input 
+                                            type="number" 
+                                            placeholder="Enter amount in dollars, e.g., 25.00" 
+                                            {...field}
+                                        />
                                     </FormControl>
-                                    <FormDescription className="text-xs h-4">{getAmountDescription()}</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                                 )}
