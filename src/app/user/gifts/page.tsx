@@ -157,20 +157,23 @@ export default function GiftsPage() {
   
   const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    // Allow digits and a single decimal point
     const numericValue = value.replace(/[^0-9.]/g, '');
     const parts = numericValue.split('.');
-    
-    let formattedValue = numericValue;
 
-    if (parts[0]) {
-        formattedValue = `$${parts[0]}`;
+    if (parts.length > 2) {
+      // More than one decimal point, ignore last input
+      return;
     }
-    if (parts[1]) {
-        formattedValue += `.${parts[1].substring(0, 2)}`;
+
+    if (parts[1] && parts[1].length > 2) {
+      // Limit to 2 decimal places
+      parts[1] = parts[1].substring(0, 2);
     }
     
-    setCustomAmount(formattedValue);
-    form.setValue('amount', parts.join('.'));
+    const finalValue = parts.join('.');
+    setCustomAmount(finalValue);
+    form.setValue('amount', finalValue);
   }
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
@@ -325,12 +328,15 @@ export default function GiftsPage() {
                                         </div>
                                          {showCustomAmount && (
                                             <FormControl>
-                                                <Input
-                                                    placeholder="$0.00"
-                                                    value={customAmount}
-                                                    onChange={handleCustomAmountChange}
-                                                    className="mt-2"
-                                                />
+                                                <div className="relative">
+                                                     <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground">$</span>
+                                                    <Input
+                                                        placeholder="0.00"
+                                                        value={customAmount}
+                                                        onChange={handleCustomAmountChange}
+                                                        className="pl-7"
+                                                    />
+                                                </div>
                                             </FormControl>
                                          )}
                                         <FormMessage />

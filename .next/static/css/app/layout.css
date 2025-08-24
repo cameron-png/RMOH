@@ -736,6 +736,9 @@ video {
 .top-\[50\%\] {
   top: 50%;
 }
+.left-3 {
+  left: 0.75rem;
+}
 .z-10 {
   z-index: 10;
 }
@@ -1678,6 +1681,9 @@ video {
 }
 .pt-6 {
   padding-top: 1.5rem;
+}
+.pl-7 {
+  padding-left: 1.75rem;
 }
 .text-left {
   text-align: left;

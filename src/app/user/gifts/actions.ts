@@ -73,6 +73,10 @@ export async function sendManualGift(params: SendManualGiftParams): Promise<{ su
 
         const amountInCents = Math.round(parseFloat(giftData.amount) * 100);
 
+        if (isNaN(amountInCents) || amountInCents <= 0) {
+            return { success: false, message: "Invalid gift amount provided." };
+        }
+
         if ((user.availableBalance || 0) < amountInCents) {
             return { success: false, message: 'Insufficient funds.' };
         }
