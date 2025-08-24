@@ -232,7 +232,7 @@ export default function VisitorFeedbackPage() {
                 recipientName: newLeadData.name,
                 recipientEmail: newLeadData.email,
                 brandCode: activeHouse.giftBrandCode,
-                brandName: activeHouse.giftBrandName,
+                ...(activeHouse.brandName && { brandName: activeHouse.brandName }),
                 amountInCents: activeHouse.giftAmountInCents,
                 type: 'Auto',
                 status: 'Pending',
