@@ -2,9 +2,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection } from 'firebase/firestore';
+import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitBrand, GiftbitSettings, AdminGift } from '@/lib/types';
+import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitBrand, GiftbitSettings, AdminGift, Gift } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock, Copy, Ban, Wallet, Users, BarChart, Settings, AlertTriangle } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Edit, MoreHorizontal, ArrowUp, ArrowDown, Gift as GiftIcon, Loader2, User as UserIcon, Mail, Phone, DollarSign, Calendar, Clock, Copy, Ban, Wallet, Users, BarChart, Settings, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -27,8 +27,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAdminDashboardData, getAvailableGiftbitBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings } from './actions';
-import { format, formatDistanceToNow } from 'date-fns';
+import { getAvailableGiftbitBrands, saveGiftbitSettings, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings } from './actions';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -103,29 +103,66 @@ export default function AdminPage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const fetchAllData = useCallback(async () => {
+    const fetchAllData = useCallback(async () => {
     setLoading(true);
     setLoadingGiftbitData(true);
     setLoadingGifts(true);
     try {
-      const { stats, users, openHouses, forms, settings } = await getAdminDashboardData();
-      setStats(stats);
-      setUsers(users);
-      setOpenHouses(openHouses);
-      setGlobalForms(forms);
-      setAppSettings(settings);
-      setEnabledBrandCodes(settings.giftbit?.enabledBrandCodes || []);
+      const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Fetch all collections in parallel
+      const [usersSnapshot, housesSnapshot, formsSnapshot, settingsDocSnap, giftsSnapshot] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'openHouses')),
+          getDocs(query(collection(db, 'feedbackForms'), where('type', '==', 'global'))),
+          getDoc(doc(db, 'settings', 'appDefaults')),
+          getDocs(collection(db, 'gifts'))
+      ]);
+
+      // Process Users
+      const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as User);
+      setUsers(usersData);
+      const newUsers7Days = usersData.filter(u => u.createdAt && u.createdAt >= sevenDaysAgo).length;
+
+      // Process Open Houses
+      const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OpenHouse);
+      setOpenHouses(openHousesData);
+      const newOpenHouses7Days = openHousesData.filter(h => h.createdAt && h.createdAt >= sevenDaysAgo).length;
       
-      const { brands } = await getAvailableGiftbitBrands();
-      setAllBrands(brands);
-      setLoadingGiftbitData(false);
+      // Process Gifts
+      const giftsData = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Gift));
+      const newGifts7Days = giftsData.filter(g => g.createdAt && g.createdAt >= sevenDaysAgo).length;
 
-      const gifts = await getAdminGiftData();
-      setAllGifts(gifts);
-      setLoadingGifts(false);
+      // Set Stats
+      setStats({
+          totalUsers: usersData.length,
+          newUsers7Days,
+          totalOpenHouses: openHousesData.length,
+          newOpenHouses7Days,
+          totalGifts: giftsData.length,
+          newGifts7Days,
+      });
 
-      const balance = await getGiftbitBalance();
-      setGiftbitBalance(balance);
+      // Process Forms
+      setGlobalForms(formsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as FeedbackForm)));
+      
+      // Process Settings
+      const settingsData = settingsDocSnap.exists() ? settingsDocSnap.data() as AppSettings : {};
+      setAppSettings(settingsData);
+      setEnabledBrandCodes(settingsData.giftbit?.enabledBrandCodes || []);
+      
+      // Fetch external Giftbit data
+      getAvailableGiftbitBrands().then(({ brands }) => {
+        setAllBrands(brands);
+        setLoadingGiftbitData(false);
+      });
+      getAdminGiftData().then(gifts => {
+        setAllGifts(gifts);
+        setLoadingGifts(false);
+      });
+      getGiftbitBalance().then(balance => {
+        setGiftbitBalance(balance);
+      });
 
     } catch (error) {
       console.error("Error fetching admin data:", error);
@@ -137,6 +174,7 @@ export default function AdminPage() {
     }
     setLoading(false);
   }, [toast]);
+
 
   useEffect(() => {
     fetchAllData();
@@ -395,7 +433,7 @@ export default function AdminPage() {
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Users" value={stats.totalUsers} subtext={`${stats.newUsers7Days} new in last 7 days`} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
             <StatCard title="Total Open Houses" value={stats.totalOpenHouses} subtext={`${stats.newOpenHouses7Days} new in last 7 days`} icon={<Home className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
-            <StatCard title="Total Gifts Sent" value={stats.totalGifts} subtext={`${stats.newGifts7Days} in last 7 days`} icon={<Gift className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
+            <StatCard title="Total Gifts Sent" value={stats.totalGifts} subtext={`${stats.newGifts7Days} in last 7 days`} icon={<GiftIcon className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
             <StatCard title="Giftbit Balance" value={formatBalance(giftbitBalance)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} isLoading={giftbitBalance === null} />
        </div>
 
@@ -728,8 +766,8 @@ export default function AdminPage() {
                                  <Badge variant="outline">{gift.giftbitStatus.replace(/_/g, ' ')}</Badge>
                             ) : <span className="text-muted-foreground text-xs">N/A</span>}
                           </TableCell>
-                           <TableCell title={formatDateWithTime(gift.createdAt)}>
-                                {formatRelativeDate(gift.createdAt)}
+                           <TableCell title={formatDateWithTime(gift.createdAt as any)}>
+                                {formatRelativeDate(gift.createdAt as any)}
                            </TableCell>
                            <TableCell className="text-right">
                             <DropdownMenu>

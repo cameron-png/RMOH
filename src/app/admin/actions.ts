@@ -27,67 +27,7 @@ function serializeTimestamps(obj: any): any {
     return obj;
 }
 
-
-export async function getAdminDashboardData() {
-    try {
-        const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-        // Fetch all collections in parallel
-        const [usersSnapshot, housesSnapshot, formsSnapshot, settingsDoc, giftsSnapshot] = await Promise.all([
-            adminDb.collection('users').get(),
-            adminDb.collection('openHouses').get(),
-            adminDb.collection('feedbackForms').where('type', '==', 'global').get(),
-            adminDb.collection('settings').doc('appDefaults').get(),
-            adminDb.collection('gifts').get()
-        ]);
-
-        // Process Users
-        const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as UserProfile);
-        const newUsers7Days = users.filter(u => u.createdAt && u.createdAt >= sevenDaysAgo).length;
-
-        // Process Open Houses
-        const openHouses = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OpenHouse);
-        const newOpenHouses7Days = openHouses.filter(h => h.createdAt && h.createdAt >= sevenDaysAgo).length;
-        
-        // Process Gifts
-        const gifts = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Gift));
-        const newGifts7Days = gifts.filter(g => g.createdAt && g.createdAt >= sevenDaysAgo).length;
-
-
-        // Process Forms
-        const forms = formsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FeedbackForm);
-        
-        // Process Settings
-        const settings = settingsDoc.exists ? settingsDoc.data() as AppSettings : {};
-        
-        return {
-            stats: {
-                totalUsers: users.length,
-                newUsers7Days,
-                totalOpenHouses: openHouses.length,
-                newOpenHouses7Days,
-                totalGifts: gifts.length,
-                newGifts7Days,
-            },
-            users: serializeTimestamps(users),
-            openHouses: serializeTimestamps(openHouses),
-            forms: serializeTimestamps(forms),
-            settings: serializeTimestamps(settings),
-        };
-    } catch (error: any) {
-        // Gracefully handle cases where collections might not exist yet
-        if (error.code === 'NOT_FOUND' || (error.details && error.details.includes('NOT_FOUND'))) {
-             console.log("A required collection was not found, returning default empty/zero values.");
-             return {
-                stats: { totalUsers: 0, newUsers7Days: 0, totalOpenHouses: 0, newOpenHouses7Days: 0, totalGifts: 0, newGifts7Days: 0 },
-                users: [], openHouses: [], forms: [], settings: {}
-             }
-        }
-        console.error("Error in getAdminDashboardData:", error);
-        throw new Error("Failed to fetch admin dashboard data: " + error.message);
-    }
-}
-
+// NOTE: getAdminDashboardData has been removed and fetching is now done client-side on the admin page.
 
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
