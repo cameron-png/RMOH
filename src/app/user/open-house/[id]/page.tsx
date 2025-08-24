@@ -200,6 +200,7 @@ export default function OpenHouseDetailPage() {
 
   useEffect(() => {
     async function loadConfiguration() {
+      if (!user) return;
       setLoadingBrands(true);
       try {
         const { brands } = await getGiftConfigurationForUser();
@@ -212,7 +213,7 @@ export default function OpenHouseDetailPage() {
       }
     }
     loadConfiguration();
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => {
     if (openHouse && brands.length > 0) {

@@ -15,7 +15,7 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
     try {
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
         
-        if (!settingsDoc.exists) {
+        if (!settingsDoc.exists()) {
             console.log("No appDefaults document found. Returning no brands.");
             return { brands: [] }; 
         }

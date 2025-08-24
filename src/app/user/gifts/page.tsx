@@ -142,6 +142,7 @@ export default function GiftsPage() {
 
   useEffect(() => {
     async function loadConfiguration() {
+      if (!user) return;
       setLoadingBrands(true);
       try {
         const { brands } = await getGiftConfigurationForUser();
@@ -158,9 +159,7 @@ export default function GiftsPage() {
         setLoadingBrands(false);
       }
     }
-    if (user) {
-      loadConfiguration();
-    }
+    loadConfiguration();
   }, [toast, user]);
 
   const handleCopyLink = (link: string) => {
