@@ -368,5 +368,3 @@ export async function setDefaultForm(formId: string): Promise<{ success: boolean
         return { success: false, message: 'Could not set the default form.' };
     }
 }
-
-    
