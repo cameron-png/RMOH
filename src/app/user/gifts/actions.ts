@@ -12,17 +12,14 @@ const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
 
 export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBrand[] }> {
-    if (!GIFTBIT_API_KEY) {
-        throw new Error('GIFTBIT_API_KEY is not configured on the server.');
-    }
-    
     try {
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
         if (!settingsDoc.exists) {
-            return { brands: [] };
+            return { brands: [] }; // No settings document, so no brands.
         }
         
         const settings = settingsDoc.data() as AppSettings;
+        // The list of full brand objects is now stored in the settings document
         const enabledBrands = settings?.giftbit?.enabledBrands || [];
         
         return { brands: enabledBrands };

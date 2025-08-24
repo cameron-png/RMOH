@@ -313,7 +313,9 @@ export default function AdminPage() {
         const enabledBrands = allBrands.filter(b => enabledBrandCodes.includes(b.brand_code));
         const settings: GiftbitSettings = { enabledBrands };
         const settingsDocRef = doc(db, 'settings', 'appDefaults');
+        
         await setDoc(settingsDocRef, { giftbit: settings }, { merge: true });
+        
         toast({ title: "Giftbit settings saved successfully!" });
     } catch (error) {
         console.error("Error saving Giftbit settings:", error);
@@ -322,6 +324,7 @@ export default function AdminPage() {
         setIsSavingGiftbit(false);
     }
   };
+
 
   const handleCancelGift = async () => {
     if (!giftToCancel) return;
