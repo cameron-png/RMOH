@@ -360,14 +360,14 @@ export default function OpenHouseDetailPage() {
             amountInCents = Math.round(parseFloat(data.giftAmount) * 100);
         }
         
-        const selectedBrand = brands.find(b => b.brand_code === data.giftBrandCode);
+        const selectedBrandData = brands.find(b => b.brand_code === data.giftBrandCode);
 
         const houseDocRef = doc(db, 'openHouses', openHouse.id);
         try {
             await updateDoc(houseDocRef, {
                 isGiftEnabled: data.isGiftEnabled,
                 giftBrandCode: data.isGiftEnabled ? data.giftBrandCode : null,
-                giftBrandName: data.isGiftEnabled ? selectedBrand?.name : null,
+                giftBrandName: data.isGiftEnabled ? selectedBrandData?.name : null,
                 giftAmountInCents: data.isGiftEnabled ? amountInCents : null,
             });
             await fetchOpenHouseData();
@@ -394,7 +394,7 @@ export default function OpenHouseDetailPage() {
         if (selectedBrand.min_price_in_cents && selectedBrand.max_price_in_cents) {
             return `Amount must be between $${(selectedBrand.min_price_in_cents / 100).toFixed(2)} and $${(selectedBrand.max_price_in_cents / 100).toFixed(2)}.`;
         }
-        return null;
+        return "Custom amount allowed.";
     };
 
     const AmountButton = ({ value }: { value: number }) => {
@@ -629,9 +629,17 @@ export default function OpenHouseDetailPage() {
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {brands.map(brand => (
-                                                        <SelectItem key={brand.brand_code} value={brand.brand_code}>{brand.name}</SelectItem>
-                                                    ))}
+                                                    {loadingBrands ? (
+                                                        <div className="flex items-center justify-center p-4">
+                                                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                        </div>
+                                                    ) : brands.length > 0 ? (
+                                                        brands.map(brand => (
+                                                            <SelectItem key={brand.brand_code} value={brand.brand_code}>{brand.name}</SelectItem>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-center p-4 text-sm text-muted-foreground">No brands enabled.</div>
+                                                    )}
                                                 </SelectContent>
                                             </Select>
                                         </FormItem>
@@ -819,3 +827,5 @@ export default function OpenHouseDetailPage() {
     </>
   );
 }
+
+    

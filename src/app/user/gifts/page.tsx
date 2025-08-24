@@ -91,7 +91,7 @@ export default function GiftsPage() {
         const max = (selectedBrand.max_price_in_cents / 100).toFixed(2);
       return `Amount must be between $${min} and $${max}.`;
     }
-    return null;
+    return "Custom amount allowed.";
   }
 
   const fetchGiftsAndHouses = useCallback(() => {
@@ -154,6 +154,7 @@ export default function GiftsPage() {
           title: 'Error',
           description: 'Could not load available gift brands.',
         });
+        setEnabledBrands([]); // Ensure it's an empty array on error
       } finally {
         setLoadingBrands(false);
       }
@@ -213,11 +214,13 @@ export default function GiftsPage() {
     if (!user || !giftDataToCreate) return;
     
     try {
+        const selectedBrandData = enabledBrands.find(b => b.brand_code === giftDataToCreate.brand);
         const newGiftData: Omit<Gift, 'id'> = {
             userId: user.uid,
             recipientName: giftDataToCreate.recipientName,
             recipientEmail: giftDataToCreate.recipientEmail,
             brandCode: giftDataToCreate.brand,
+            brandName: selectedBrandData?.name,
             amountInCents: Math.round(parseFloat(giftDataToCreate.amount) * 100),
             message: giftDataToCreate.message,
             type: 'Manual',
@@ -382,12 +385,14 @@ export default function GiftsPage() {
                                                 <div className="flex items-center justify-center p-4">
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                 </div>
-                                            ) : (
+                                            ) : enabledBrands.length > 0 ? (
                                                 enabledBrands.map((brand) => (
                                                     <SelectItem key={brand.brand_code} value={brand.brand_code}>
                                                     {brand.name}
                                                     </SelectItem>
                                                 ))
+                                            ) : (
+                                                <div className="text-center p-4 text-sm text-muted-foreground">No brands enabled.</div>
                                             )}
                                         </SelectContent>
                                     </Select>
