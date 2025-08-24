@@ -153,7 +153,8 @@ export async function getAdminGiftData(): Promise<AdminGift[]> {
 
     } catch (error: any) {
         console.error("Error in getAdminGiftData:", error);
-        throw new Error("Failed to fetch admin gift data: " + error.message);
+        // Return empty array on failure to prevent page crash
+        return [];
     }
 }
 
