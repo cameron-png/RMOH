@@ -22,7 +22,7 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
         
         const settings = settingsDoc.data() as AppSettings;
         
-        // This is the corrected logic: directly access and return the saved brands array.
+        // Safely access the enabledBrands array. If giftbit settings or the array are missing, default to an empty array.
         const enabledBrands = settings?.giftbit?.enabledBrands || [];
         
         return { brands: enabledBrands };
