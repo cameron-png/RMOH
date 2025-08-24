@@ -12,11 +12,6 @@ const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
 
 export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBrand[] }> {
-    if (!GIFTBIT_API_KEY) {
-        console.log('GIFTBIT_API_KEY is not configured on the server.');
-        return { brands: [] };
-    }
-
     try {
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
         
@@ -26,32 +21,7 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
         }
         
         const settings = settingsDoc.data() as AppSettings;
-        const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes || [];
-
-        if (enabledBrandCodes.length === 0) {
-            return { brands: [] };
-        }
-        
-        const allBrandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
-            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-            next: { revalidate: 3600 } // Revalidate every hour
-        });
-
-        if (!allBrandsResponse.ok) {
-            const errorBody = await allBrandsResponse.text();
-            console.error('Giftbit API Error fetching brands:', {
-                status: allBrandsResponse.status,
-                body: errorBody
-            });
-             throw new Error(`Giftbit API request failed: ${errorBody}`);
-        }
-
-        const allBrandsData = await allBrandsResponse.json();
-        const allBrands = allBrandsData.brands || [];
-
-        const enabledBrands = allBrands.filter((brand: GiftbitBrand) => 
-            enabledBrandCodes.includes(brand.brand_code)
-        );
+        const enabledBrands = settings?.giftbit?.enabledBrands || [];
         
         return { brands: enabledBrands };
 

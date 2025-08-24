@@ -125,7 +125,7 @@ export interface Transaction {
 }
 
 export interface GiftbitSettings {
-    enabledBrandCodes?: string[];
+    enabledBrands?: GiftbitBrand[];
 }
 
 
