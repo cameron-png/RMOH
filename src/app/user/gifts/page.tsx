@@ -18,11 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink, ThumbsUp, ThumbsDown, Home, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { confirmPendingGift, declinePendingGift, sendManualGift } from './actions';
+import { sendManualGift } from './actions';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,12 +45,6 @@ export default function GiftsPage() {
   
   const [enabledBrands, setEnabledBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
-
-  const [giftToConfirm, setGiftToConfirm] = useState<Gift | null>(null);
-  const [isConfirming, setIsConfirming] = useState(false);
-
-  const [giftToDecline, setGiftToDecline] = useState<Gift | null>(null);
-  const [isDeclining, setIsDeclining] = useState(false);
 
   const [customAmount, setCustomAmount] = useState('');
   const [showCustomAmount, setShowCustomAmount] = useState(false);
@@ -203,10 +196,14 @@ export default function GiftsPage() {
     try {
         const result = await sendManualGift({...values, userId: user.uid, amount: (amountInCents / 100).toString()});
         
-        if (result.success && result.gift) {
+        if (result.success) {
+            toast({
+                title: 'Gift Sent!',
+                description: 'The gift has been successfully sent to the recipient.',
+            });
             setIsFormOpen(false); // Close the creation form
             form.reset();
-            setGiftToConfirm(result.gift); // Open the confirmation dialog
+            await refreshUserData();
         } else {
             toast({
                 variant: 'destructive',
@@ -218,58 +215,11 @@ export default function GiftsPage() {
          toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Could not create the gift. Please try again.',
+            description: 'Could not send the gift. Please try again.',
         });
     }
   }
 
-  const handleConfirmGift = async () => {
-    if (!giftToConfirm || !user) return;
-
-    if ((availableBalance || 0) < giftToConfirm.amountInCents) {
-      toast({
-        variant: "destructive",
-        title: "Insufficient Funds",
-        description: `You need ${formatCurrency(giftToConfirm.amountInCents)} but only have ${formatCurrency(availableBalance || 0)}.`,
-      });
-      setGiftToConfirm(null);
-      return;
-    }
-
-    setIsConfirming(true);
-    try {
-      const result = await confirmPendingGift(giftToConfirm.id, user.uid);
-       if (result.success) {
-          toast({ title: 'Gift Confirmed', description: 'The gift is being sent to the recipient.' });
-          await refreshUserData();
-       } else {
-           toast({ variant: 'destructive', title: 'Confirmation Failed', description: result.message });
-       }
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Confirmation Failed', description: error.message });
-    } finally {
-      setIsConfirming(false);
-      setGiftToConfirm(null);
-    }
-  };
-
-  const handleDeclineGift = async () => {
-    if (!giftToDecline || !user) return;
-    setIsDeclining(true);
-    try {
-      const result = await declinePendingGift(giftToDecline.id, user.uid);
-       if (result.success) {
-            toast({ title: 'Gift Declined', description: 'The pending gift has been cancelled.' });
-       } else {
-           toast({ variant: 'destructive', title: 'Decline Failed', description: result.message });
-       }
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Decline Failed', description: error.message });
-    } finally {
-      setIsDeclining(false);
-      setGiftToDecline(null);
-    }
-  };
   
   return (
     <>
@@ -404,7 +354,7 @@ export default function GiftsPage() {
                                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={form.formState.isSubmitting}>
                                      <Send className="mr-2 h-4 w-4" />
-                                    {form.formState.isSubmitting ? 'Creating...' : 'Create Gift'}
+                                    {form.formState.isSubmitting ? 'Sending...' : 'Send Gift'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -461,10 +411,7 @@ export default function GiftsPage() {
                                 </CardContent>
                                 <CardFooter className="flex gap-2">
                                      {gift.status === 'Pending' ? (
-                                        <>
-                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => setGiftToDecline(gift)}><ThumbsDown className="mr-2"/>Decline</Button>
-                                            <Button size="sm" className="flex-1" onClick={() => setGiftToConfirm(gift)}><ThumbsUp className="mr-2"/>Confirm</Button>
-                                        </>
+                                        <span className="text-sm text-muted-foreground">This gift was queued from an open house and requires confirmation.</span>
                                      ) : gift.claimUrl ? (
                                         <Button variant="outline" size="sm" asChild className="w-full">
                                             <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer">
@@ -540,10 +487,7 @@ export default function GiftsPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {gift.status === 'Pending' ? (
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="ghost" size="sm" onClick={() => setGiftToDecline(gift)}><ThumbsDown className="mr-2"/>Decline</Button>
-                                                <Button size="sm" onClick={() => setGiftToConfirm(gift)}><ThumbsUp className="mr-2"/>Confirm</Button>
-                                            </div>
+                                            <span className="text-muted-foreground text-xs">Awaiting confirmation</span>
                                         ) : gift.claimUrl ? (
                                             <Button variant="ghost" size="icon" asChild>
                                                 <a href={gift.claimUrl} target="_blank" rel="noopener noreferrer" aria-label="Open Gift Link">
@@ -572,45 +516,6 @@ export default function GiftsPage() {
             </CardContent>
         </Card>
     </div>
-    
-    <AlertDialog open={!!giftToConfirm} onOpenChange={(open) => !open && setGiftToConfirm(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Gift?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This will send a {giftToConfirm ? formatCurrency(giftToConfirm.amountInCents) : ''} gift to {giftToConfirm?.recipientName} and deduct the cost from your balance. This action cannot be undone.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setGiftToConfirm(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmGift} disabled={isConfirming}>
-                    {isConfirming ? "Confirming..." : "Yes, Send Gift"}
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-
-    <AlertDialog open={!!giftToDecline} onOpenChange={(open) => !open && setGiftToDecline(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Decline Gift?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This will cancel the pending gift for {giftToDecline?.recipientName}. This cannot be undone.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setGiftToDecline(null)}>Back</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeclineGift} disabled={isDeclining} className="bg-destructive hover:bg-destructive/90">
-                    {isDeclining ? "Declining..." : "Yes, Decline"}
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-
     </>
   );
 }
-
-    
-
-    
