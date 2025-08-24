@@ -225,7 +225,7 @@ export async function resetApplicationSettings(): Promise<{ success: boolean; me
     }
     if (currentSettings.giftbit) {
         cleanSettings.giftbit = {
-            enabledBrandCodes: currentSettings.giftbit.enabledBrandCodes || [],
+            enabledBrands: currentSettings.giftbit.enabledBrands || [],
         };
     }
     

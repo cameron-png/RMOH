@@ -92,7 +92,7 @@ export default function AdminPage() {
   const [giftToCancel, setGiftToCancel] = useState<AdminGift | null>(null);
 
   const [isResetSettingsOpen, setIsResetSettingsOpen] = useState(false);
-  const [isResettings, setIsResetting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const getInitials = (name?: string | null) => {
     if (!name) return "??";
@@ -125,7 +125,7 @@ export default function AdminPage() {
       const newUsers7Days = usersData.filter(u => u.createdAt && u.createdAt >= sevenDaysAgo).length;
 
       // Process Open Houses
-      const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OpenHouse);
+      const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpenHouse);
       setOpenHouses(openHousesData);
       const newOpenHouses7Days = openHousesData.filter(h => h.createdAt && h.createdAt >= sevenDaysAgo).length;
       
@@ -311,7 +311,10 @@ export default function AdminPage() {
     setIsSavingGiftbit(true);
     try {
         const enabledBrandsData = allBrands.filter(brand => enabledBrandCodes.includes(brand.brand_code));
+        
+        // This is the new structure we will save.
         const settings: GiftbitSettings = { enabledBrands: enabledBrandsData };
+        
         const settingsDocRef = doc(db, 'settings', 'appDefaults');
         
         await setDoc(settingsDocRef, { giftbit: settings }, { merge: true });
@@ -928,7 +931,7 @@ export default function AdminPage() {
                  </div>
                ) : (
                 <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Enabled Brands (USA)</h3>
+                    <h3 className="text-lg font-medium">Enabled Brands</h3>
                     <ScrollArea className="h-[600px] border rounded-lg p-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {filteredBrands.map(brand => (
@@ -952,7 +955,7 @@ export default function AdminPage() {
                         </div>
                         {filteredBrands.length === 0 && (
                             <div className="text-center py-10 text-muted-foreground">
-                                <p>No US brands available from Giftbit.</p>
+                                <p>No brands available from Giftbit.</p>
                             </div>
                         )}
                     </ScrollArea>
@@ -1156,8 +1159,8 @@ export default function AdminPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleResetSettings} disabled={isResettings}>
-                     {isResettings ? "Resetting..." : "Yes, Reset Settings"}
+                <AlertDialogAction onClick={handleResetSettings} disabled={isResetting}>
+                     {isResetting ? "Resetting..." : "Yes, Reset Settings"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
