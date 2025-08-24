@@ -67,7 +67,6 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
 export async function saveGiftbitSettings(settings: GiftbitSettings): Promise<{ success: boolean; message?: string }> {
     try {
         const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
-        // Use set with merge to safely create or update the document and field.
         await settingsDocRef.set({ giftbit: settings }, { merge: true });
         return { success: true };
     } catch (error: any) {
