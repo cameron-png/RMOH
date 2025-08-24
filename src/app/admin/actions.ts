@@ -53,22 +53,11 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
         }
 
         const brandsData = await brandsResponse.json();
-        const allBrands = brandsData.brands || [];
-        
-        const usBrands = allBrands.filter((brand: any) => 
-            brand.region_codes.includes("us")
-        );
-        
-        // Failsafe: If filtering for 'us' returns nothing, but brands exist, return all brands.
-        // This handles cases where the testbed might not have region codes set as expected.
-        if (usBrands.length === 0 && allBrands.length > 0) {
-            console.warn("No brands with region 'us' found. Falling back to all available brands.");
-            return { brands: allBrands };
-        }
-
+        // Return all brands without region filtering for the admin view
         return {
-            brands: usBrands,
+            brands: brandsData.brands || [],
         };
+
     } catch (error: any) {
         console.error('Error fetching from Giftbit:', error.message);
         return { brands: [] };

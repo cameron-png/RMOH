@@ -2018,9 +2018,6 @@ video {
 .ease-linear {
   animation-timing-function: linear;
 }
-.\[key\:string\] {
-  key: string;
-}
 
 .file\:border-0::file-selector-button {
   border-width: 0px;
