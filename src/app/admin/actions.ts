@@ -4,10 +4,8 @@
 import { adminDb } from '@/lib/firebase/server';
 import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
-import getConfig from 'next/config';
 
-const { serverRuntimeConfig } = getConfig();
-const GIFTBIT_API_KEY = serverRuntimeConfig.giftbitApiKey;
+const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 
 function serializeTimestamps(obj: any): any {
     if (obj === null || obj === undefined) {
@@ -291,3 +289,5 @@ export async function resetApplicationSettings(): Promise<{ success: boolean; me
     return { success: false, message: 'An unexpected error occurred during the settings reset.' };
   }
 }
+
+    

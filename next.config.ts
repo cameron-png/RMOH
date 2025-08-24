@@ -56,10 +56,8 @@ const nextConfig: NextConfig = {
       serverActionsTimeout: 120000, // 2 minutes
     },
   },
-  // Make the API key available on the server-side
-  serverRuntimeConfig: {
-    giftbitApiKey: process.env.GIFTBIT_API_KEY,
-  },
 };
 
 export default nextConfig;
+
+    

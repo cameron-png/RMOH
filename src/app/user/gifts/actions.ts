@@ -5,11 +5,8 @@ import { adminDb } from '@/lib/firebase/server';
 import { Gift, UserProfile, GiftbitBrand, AppSettings, OpenHouse, Transaction } from '@/lib/types';
 import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import getConfig from 'next/config';
 
-const { serverRuntimeConfig } = getConfig();
-const GIFTBIT_API_KEY = serverRuntimeConfig.giftbitApiKey;
-
+const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
@@ -203,3 +200,5 @@ export async function declinePendingGift(giftId: string): Promise<{ success: boo
     return { success: false, message: 'Failed to decline the gift.' };
   }
 }
+
+    
