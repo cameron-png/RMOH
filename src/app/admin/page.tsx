@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitBrand, GiftbitSettings, AdminGift, Gift } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
