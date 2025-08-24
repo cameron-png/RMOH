@@ -26,7 +26,7 @@ async function createGiftbitGift(gift: Gift): Promise<any> {
         throw new Error('GIFTBIT_API_KEY is not configured on the server.');
     }
     
-    const response = await fetch(`${GIFTBIT_BASE_URL}/gifts`, {
+    const response = await fetch(`${GIFTBIT_BASE_URL}/direct_links`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${GIFTBIT_API_KEY}`,
@@ -35,10 +35,9 @@ async function createGiftbitGift(gift: Gift): Promise<any> {
         body: JSON.stringify({
             id: gift.id, // Use Firestore doc ID for idempotency
             price_in_cents: gift.amountInCents,
-            brand_code: gift.brandCode,
-            delivery_format: "SHORT_LINK", // We need the link to email ourselves
-            recipient_name: gift.recipientName,
-            recipient_email: gift.recipientEmail,
+            brand_codes: [gift.brandCode],
+            region: "USA", // Assuming US region for now
+            link_count: 1,
         }),
     });
 
@@ -102,7 +101,7 @@ async function processGift(giftId: string, authenticatedUserId: string) {
         const orderResponse = await createGiftbitGift(gift);
         
         // 2. Extract the claim URL from the response
-        const claimUrl = orderResponse?.gift?.short_link;
+        const claimUrl = orderResponse?.direct_links?.[0];
 
         if (!claimUrl) {
             console.error('No claim URL found in Giftbit response for gift:', gift.id, 'Response:', orderResponse);
@@ -253,3 +252,5 @@ export async function declinePendingGift(giftId: string, userId: string): Promis
         return { success: false, message: 'Failed to decline the gift.' };
     }
 }
+
+    
