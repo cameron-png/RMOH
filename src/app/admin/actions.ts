@@ -67,9 +67,21 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
 export async function saveGiftbitSettings(settings: GiftbitSettings): Promise<{ success: boolean; message?: string }> {
     try {
         const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
-        await settingsDocRef.set({ giftbit: settings }, { merge: true });
+        // Update the 'giftbit' field directly within the document.
+        await settingsDocRef.update({ giftbit: settings });
         return { success: true };
     } catch (error: any) {
+        // If the document or field doesn't exist, try setting it with merge.
+        if ((error as any).code === 5) { // Firestore 'NOT_FOUND' error
+            try {
+                const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
+                await settingsDocRef.set({ giftbit: settings }, { merge: true });
+                return { success: true };
+            } catch (set_error: any) {
+                 console.error("Error setting Giftbit settings after update failed:", set_error);
+                 return { success: false, message: 'Failed to save settings.' };
+            }
+        }
         console.error("Error saving Giftbit settings:", error);
         return { success: false, message: 'Failed to save settings.' };
     }
