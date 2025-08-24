@@ -214,7 +214,7 @@ function generateNewLeadEmailHtml({ user, lead, openHouseAddress }: NewLeadEmail
                   <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; text-align: center; margin-top: 30px;">
                     <tr>
                       <td>
-                        <a href="${siteUrl}/user/my-leads" style="background-color: #3b82f6; color: #ffffff; padding: 15px 25px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">View All Leads</a>
+                        <a href="${siteUrl}/user/my-leads?house=${lead.openHouseId}" style="background-color: #3b82f6; color: #ffffff; padding: 15px 25px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">View Lead</a>
                       </td>
                     </tr>
                   </table>
@@ -346,5 +346,3 @@ export async function sendLowBalanceEmail(params: LowBalanceEmailParams) {
         console.error("Error sending low balance email:", error);
     }
 }
-
-    

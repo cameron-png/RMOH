@@ -2,8 +2,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { doc, addDoc, updateDoc, deleteDoc, Timestamp, setDoc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { User, OpenHouse, FeedbackForm, Question, QuestionOption, AppSettings, GiftbitBrand, GiftbitSettings, AdminGift, Gift } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -27,11 +25,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { getAvailableGiftbitBrands, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings } from './actions';
+import { getAdminDashboardData, getAvailableGiftbitBrands, getAdminGiftData, cancelGiftbitReward, getGiftbitBalance, resetApplicationSettings, AdminDashboardData, saveGiftbitSettings, saveForm, deleteForm, setDefaultForm } from './actions';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Timestamp } from 'firebase/firestore';
+
 
 const optionSchema = z.object({
   id: z.string(),
@@ -51,22 +51,10 @@ const formSchema = z.object({
   questions: z.array(questionSchema).min(1, "You must add at least one question"),
 });
 
-type AdminStats = {
-    totalUsers: number;
-    newUsers7Days: number;
-    totalOpenHouses: number;
-    newOpenHouses7Days: number;
-    totalGifts: number;
-    newGifts7Days: number;
-};
 
 export default function AdminPage() {
-  const [stats, setStats] = useState<AdminStats>({ totalUsers: 0, newUsers7Days: 0, totalOpenHouses: 0, newOpenHouses7Days: 0, totalGifts: 0, newGifts7Days: 0 });
-  const [users, setUsers] = useState<User[]>([]);
-  const [openHouses, setOpenHouses] = useState<OpenHouse[]>([]);
-  const [globalForms, setGlobalForms] = useState<FeedbackForm[]>([]);
+  const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [allGifts, setAllGifts] = useState<AdminGift[]>([]);
-  const [appSettings, setAppSettings] = useState<AppSettings>({});
   const [giftbitBalance, setGiftbitBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -103,55 +91,16 @@ export default function AdminPage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-    const fetchAllData = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     setLoadingGiftbitData(true);
     setLoadingGifts(true);
     try {
-      const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-      // Fetch all collections in parallel
-      const [usersSnapshot, housesSnapshot, formsSnapshot, settingsDocSnap, giftsSnapshot] = await Promise.all([
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'openHouses')),
-          getDocs(query(collection(db, 'feedbackForms'), where('type', '==', 'global'))),
-          getDoc(doc(db, 'settings', 'appDefaults')),
-          getDocs(collection(db, 'gifts'))
-      ]);
-
-      // Process Users
-      const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as User);
-      setUsers(usersData);
-      const newUsers7Days = usersData.filter(u => u.createdAt && u.createdAt >= sevenDaysAgo).length;
-
-      // Process Open Houses
-      const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpenHouse));
-      setOpenHouses(openHousesData);
-      const newOpenHouses7Days = openHousesData.filter(h => h.createdAt && h.createdAt >= sevenDaysAgo).length;
+      const data = await getAdminDashboardData();
+      setDashboardData(data);
+      setEnabledBrandCodes(data.appSettings.giftbit?.enabledBrands?.map(b => b.brand_code) || []);
       
-      // Process Gifts
-      const giftsData = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Gift));
-      const newGifts7Days = giftsData.filter(g => g.createdAt && g.createdAt >= sevenDaysAgo).length;
-
-      // Set Stats
-      setStats({
-          totalUsers: usersData.length,
-          newUsers7Days,
-          totalOpenHouses: openHousesData.length,
-          newOpenHouses7Days,
-          totalGifts: giftsData.length,
-          newGifts7Days,
-      });
-
-      // Process Forms
-      setGlobalForms(formsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as FeedbackForm)));
-      
-      // Process Settings
-      const settingsData = settingsDocSnap.exists() ? settingsDocSnap.data() as AppSettings : {};
-      setAppSettings(settingsData);
-      setEnabledBrandCodes(settingsData.giftbit?.enabledBrands?.map(b => b.brand_code) || []);
-      
-      // Fetch external Giftbit data
+      // Fetch external Giftbit data in parallel
       getAvailableGiftbitBrands().then(({ brands }) => {
         setAllBrands(brands);
         setLoadingGiftbitData(false);
@@ -223,42 +172,33 @@ export default function AdminPage() {
   };
   
   async function onFormSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      if (formToEdit) {
-        // Update existing form
-        const formDocRef = doc(db, "feedbackForms", formToEdit.id);
-        await updateDoc(formDocRef, {
-            title: values.title,
-            questions: values.questions,
-        });
-      } else {
-        // Create new form
-        await addDoc(collection(db, "feedbackForms"), {
-          ...values,
-          type: 'global',
-          createdAt: Timestamp.now(),
-        });
-      }
+    const result = await saveForm({
+        formId: formToEdit?.id,
+        ...values
+    });
+
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
       closeFormDialog();
       await fetchAllData();
-    } catch (error) {
-      console.error("Error saving form:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not save the form." });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
   }
 
   const handleDeleteForm = async () => {
     if (!formToDelete) return;
-    try {
-        await deleteDoc(doc(db, "feedbackForms", formToDelete));
+    const result = await deleteForm(formToDelete);
+
+    if (result.success) {
+        toast({ title: 'Success', description: result.message });
         await fetchAllData();
-    } catch (error) {
-        console.error("Error deleting form:", error);
-        toast({ variant: "destructive", title: "Delete Failed", description: "Could not delete the form." });
-    } finally {
-        setIsDeleteDialogOpen(false);
-        setFormToDelete(null);
+    } else {
+        toast({ variant: 'destructive', title: 'Delete Failed', description: result.message });
     }
+    
+    setIsDeleteDialogOpen(false);
+    setFormToDelete(null);
   }
 
   const openFormDialog = (form?: FeedbackForm) => {
@@ -283,22 +223,21 @@ export default function AdminPage() {
   };
   
   const handleSetDefaultForm = async (formId: string) => {
-    try {
-        const settingsDocRef = doc(db, 'settings', 'appDefaults');
-        await setDoc(settingsDocRef, { defaultGlobalFormId: formId }, { merge: true });
-        setAppSettings(prev => ({...prev, defaultGlobalFormId: formId }));
+     const result = await setDefaultForm(formId);
+     if (result.success) {
+        // Optimistically update local state
+        setDashboardData(prev => prev ? { ...prev, appSettings: { ...prev.appSettings, defaultGlobalFormId: formId } } : null);
         toast({
             title: "Default Form Set",
             description: "New users will now receive this form by default."
         });
-    } catch (error) {
-        console.error("Error setting default form:", error);
-        toast({
+     } else {
+         toast({
             variant: "destructive",
             title: "Error",
-            description: "Could not set the default form."
+            description: result.message
         });
-    }
+     }
   };
 
   const handleBrandToggle = (brandCode: string, checked: boolean) => {
@@ -309,23 +248,15 @@ export default function AdminPage() {
   
   const handleSaveGiftbitSettings = async () => {
     setIsSavingGiftbit(true);
-    try {
-        const enabledBrandsData = allBrands.filter(brand => enabledBrandCodes.includes(brand.brand_code));
-        
-        // This is the new structure we will save.
-        const settings: GiftbitSettings = { enabledBrands: enabledBrandsData };
-        
-        const settingsDocRef = doc(db, 'settings', 'appDefaults');
-        
-        await setDoc(settingsDocRef, { giftbit: settings }, { merge: true });
-        
-        toast({ title: "Giftbit settings saved successfully!" });
-    } catch (error) {
-        console.error("Error saving Giftbit settings:", error);
-        toast({ variant: "destructive", title: "Error", description: "Failed to save settings." });
-    } finally {
-        setIsSavingGiftbit(false);
+    const enabledBrandsData = allBrands.filter(brand => enabledBrandCodes.includes(brand.brand_code));
+    const result = await saveGiftbitSettings(enabledBrandsData);
+
+    if (result.success) {
+      toast({ title: "Giftbit settings saved successfully!" });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.message });
     }
+    setIsSavingGiftbit(false);
   };
 
 
@@ -334,7 +265,7 @@ export default function AdminPage() {
     const result = await cancelGiftbitReward(giftToCancel.id);
     if (result.success) {
         toast({ title: "Success", description: result.message });
-        await fetchAllData();
+        getAdminGiftData().then(gifts => setAllGifts(gifts)); // Refresh just gifts
     } else {
         toast({ variant: "destructive", title: "Cancellation Failed", description: result.message });
     }
@@ -356,15 +287,17 @@ export default function AdminPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    return users.filter(user =>
+    if (!dashboardData) return [];
+    return dashboardData.users.filter(user =>
       user.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
       user.email?.toLowerCase().includes(userSearch.toLowerCase())
     );
-  }, [users, userSearch]);
+  }, [dashboardData, userSearch]);
 
   const filteredHouses = useMemo(() => {
-    const userMap = new Map(users.map(u => [u.id, u]));
-    return openHouses
+    if (!dashboardData) return [];
+    const userMap = new Map(dashboardData.users.map(u => [u.id, u]));
+    return dashboardData.openHouses
       .map(house => ({
         ...house,
         userName: userMap.get(house.userId)?.name || 'Unknown User'
@@ -373,7 +306,7 @@ export default function AdminPage() {
         house.address.toLowerCase().includes(houseSearch.toLowerCase()) ||
         house.userName.toLowerCase().includes(houseSearch.toLowerCase())
       );
-  }, [openHouses, houseSearch, users]);
+  }, [dashboardData, houseSearch]);
   
   const filteredBrands = useMemo(() => {
     return allBrands.sort((a,b) => a.name.localeCompare(b.name));
@@ -399,19 +332,19 @@ export default function AdminPage() {
   
   const formatDate = (timestamp?: Timestamp | string) => {
       if (!timestamp) return 'N/A';
-      const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
+      const date = typeof timestamp === 'string' ? parseISO(timestamp) : timestamp.toDate();
       return format(date, 'MMM d, yyyy');
   };
 
   const formatDateWithTime = (timestamp?: Timestamp | string) => {
     if (!timestamp) return 'N/A';
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
+    const date = typeof timestamp === 'string' ? parseISO(timestamp) : timestamp.toDate();
     return format(date, 'MMM d, yyyy p');
   };
 
   const formatRelativeDate = (timestamp?: Timestamp | string) => {
     if (!timestamp) return 'N/A';
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp.toDate();
+    const date = typeof timestamp === 'string' ? parseISO(timestamp) : timestamp.toDate();
     return formatDistanceToNow(date, { addSuffix: true });
   };
 
@@ -441,9 +374,9 @@ export default function AdminPage() {
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Users" value={stats.totalUsers} subtext={`${stats.newUsers7Days} new in last 7 days`} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
-            <StatCard title="Total Open Houses" value={stats.totalOpenHouses} subtext={`${stats.newOpenHouses7Days} new in last 7 days`} icon={<Home className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
-            <StatCard title="Total Gifts Sent" value={stats.totalGifts} subtext={`${stats.newGifts7Days} in last 7 days`} icon={<GiftIcon className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
+            <StatCard title="Total Users" value={dashboardData?.stats.totalUsers ?? 0} subtext={dashboardData ? `${dashboardData.stats.newUsers7Days} new in last 7 days` : ''} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
+            <StatCard title="Total Open Houses" value={dashboardData?.stats.totalOpenHouses ?? 0} subtext={dashboardData ? `${dashboardData.stats.newOpenHouses7Days} new in last 7 days` : ''} icon={<Home className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
+            <StatCard title="Total Gifts Sent" value={dashboardData?.stats.totalGifts ?? 0} subtext={dashboardData ? `${dashboardData.stats.newGifts7Days} in last 7 days` : ''} icon={<GiftIcon className="h-4 w-4 text-muted-foreground" />} isLoading={loading} />
             <StatCard title="Giftbit Balance" value={formatBalance(giftbitBalance)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} isLoading={giftbitBalance === null} />
        </div>
 
@@ -506,11 +439,11 @@ export default function AdminPage() {
                                </div>
                                <div className="flex justify-between">
                                    <span className="text-muted-foreground flex items-center gap-1"><Calendar className="w-4 h-4"/> User Since:</span>
-                                   <span className="font-medium">{formatDate(user.createdAt)}</span>
+                                   <span className="font-medium">{formatDate(user.createdAt as any)}</span>
                                </div>
                                 <div className="flex justify-between">
                                    <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-4 h-4"/> Last Activity:</span>
-                                   <span className="font-medium">{formatDateWithTime(user.lastLoginAt)}</span>
+                                   <span className="font-medium">{formatDateWithTime(user.lastLoginAt as any)}</span>
                                </div>
                             </CardContent>
                         </Card>
@@ -560,10 +493,10 @@ export default function AdminPage() {
                                 {formatBalance(user.availableBalance)}
                            </TableCell>
                            <TableCell>
-                                {formatDate(user.createdAt)}
+                                {formatDate(user.createdAt as any)}
                            </TableCell>
                            <TableCell>
-                                {formatDateWithTime(user.lastLoginAt)}
+                                {formatDateWithTime(user.lastLoginAt as any)}
                            </TableCell>
                         </TableRow>
                       )) : (
@@ -836,17 +769,17 @@ export default function AdminPage() {
             <CardContent>
               {loading ? (
                 <p>Loading forms...</p>
-              ) : globalForms.length > 0 ? (
+              ) : dashboardData && dashboardData.globalForms.length > 0 ? (
                 <>
                 <div className="mb-6 bg-muted/50 p-4 rounded-lg">
                     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="default-form-select">Default Form for New Users</label>
                     <p className="text-sm text-muted-foreground mb-2">This form will be the default for all new users.</p>
-                    <Select onValueChange={handleSetDefaultForm} value={appSettings.defaultGlobalFormId}>
+                    <Select onValueChange={handleSetDefaultForm} value={dashboardData.appSettings.defaultGlobalFormId}>
                         <SelectTrigger id="default-form-select" className="w-full max-w-sm">
                             <SelectValue placeholder="Select a default form..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {globalForms.map(form => (
+                            {dashboardData.globalForms.map(form => (
                                 <SelectItem key={form.id} value={form.id}>{form.title}</SelectItem>
                             ))}
                         </SelectContent>
@@ -862,11 +795,11 @@ export default function AdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {globalForms.map(form => (
+                      {dashboardData.globalForms.map(form => (
                         <TableRow key={form.id}>
                           <TableCell className="font-medium flex items-center gap-2">
                             {form.title}
-                            {form.id === appSettings.defaultGlobalFormId && (
+                            {form.id === dashboardData.appSettings.defaultGlobalFormId && (
                                 <Badge variant="secondary">Default</Badge>
                             )}
                           </TableCell>

@@ -6,7 +6,7 @@ import { doc, getDoc, deleteDoc, Timestamp, collection, query, where, getDocs, a
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/use-auth';
-import { Lead as LeadType, OpenHouse, FeedbackForm, FeedbackSubmission, UserProfile, Address, GiftbitBrand } from '@/lib/types';
+import { Lead as LeadType, OpenHouse, FeedbackForm, FeedbackSubmission, UserProfile, Address, GiftbitBrand, AppSettings } from '@/lib/types';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -31,7 +31,6 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { getGiftConfigurationForUser } from '../../gifts/actions';
 
 const addressFormSchema = z.object({
   streetNumber: z.string().min(1, "Street number is required."),
@@ -81,7 +80,6 @@ export default function OpenHouseDetailPage() {
 
   const [brands, setBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
-  const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
   
 
   const id = params.id as string;
@@ -202,8 +200,15 @@ export default function OpenHouseDetailPage() {
       if (!user) return;
       setLoadingBrands(true);
       try {
-        const { brands } = await getGiftConfigurationForUser();
-        setBrands(brands);
+        const settingsDocRef = doc(db, 'settings', 'appDefaults');
+        const settingsDocSnap = await getDoc(settingsDocRef);
+        if (settingsDocSnap.exists()) {
+            const settings = settingsDocSnap.data() as AppSettings;
+            const enabledBrands = settings?.giftbit?.enabledBrands || [];
+            setBrands(enabledBrands);
+        } else {
+            setBrands([]);
+        }
       } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not load gift brands.' });
@@ -215,18 +220,14 @@ export default function OpenHouseDetailPage() {
   }, [toast, user]);
 
   useEffect(() => {
-    if (openHouse && brands.length > 0) {
+    if (openHouse) {
       giftAutomationForm.reset({
         isGiftEnabled: openHouse.isGiftEnabled || false,
         giftBrandCode: openHouse.giftBrandCode || '',
         giftAmount: openHouse.giftAmountInCents ? (openHouse.giftAmountInCents / 100).toString() : '',
       });
-      if (openHouse.giftBrandCode) {
-        const brand = brands.find(b => b.brand_code === openHouse.giftBrandCode);
-        setSelectedBrand(brand || null);
-      }
     }
-  }, [openHouse, brands, giftAutomationForm]);
+  }, [openHouse, giftAutomationForm]);
 
 
   const handleSetForm = async (houseId: string, formId: string) => {
@@ -381,13 +382,6 @@ export default function OpenHouseDetailPage() {
             console.error("Error updating gift settings:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not save gift settings.' });
         }
-    };
-
-    const handleBrandChange = (brandCode: string) => {
-        const brand = brands.find(b => b.brand_code === brandCode);
-        setSelectedBrand(brand || null);
-        giftAutomationForm.setValue('giftBrandCode', brandCode, { shouldDirty: true });
-        giftAutomationForm.setValue('giftAmount', '', { shouldDirty: true }); // Reset amount on brand change
     };
   
   if (loading || authLoading) return <p className="text-muted-foreground">Loading details...</p>;
@@ -598,7 +592,7 @@ export default function OpenHouseDetailPage() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Gift Card Brand</FormLabel>
-                                            <Select onValueChange={handleBrandChange} value={field.value} disabled={loadingBrands}>
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={loadingBrands}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder={loadingBrands ? "Loading..." : "Select a brand"} />

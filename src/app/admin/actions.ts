@@ -2,8 +2,9 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitBrand, GiftbitSettings, Gift, AdminGift } from '@/lib/types';
-import { Timestamp } from 'firebase-admin/firestore';
+import { UserProfile, OpenHouse, FeedbackForm, AppSettings, GiftbitBrand, GiftbitSettings, Gift, AdminGift, User, Question } from '@/lib/types';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { z } from 'zod';
 
 const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 
@@ -27,7 +28,73 @@ function serializeTimestamps(obj: any): any {
     return obj;
 }
 
-// NOTE: getAdminDashboardData has been removed and fetching is now done client-side on the admin page.
+export type AdminDashboardData = {
+    stats: {
+        totalUsers: number;
+        newUsers7Days: number;
+        totalOpenHouses: number;
+        newOpenHouses7Days: number;
+        totalGifts: number;
+        newGifts7Days: number;
+    };
+    users: User[];
+    openHouses: OpenHouse[];
+    globalForms: FeedbackForm[];
+    appSettings: AppSettings;
+}
+
+export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+    try {
+        const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        // Fetch all collections in parallel
+        const [usersSnapshot, housesSnapshot, formsSnapshot, settingsDocSnap, giftsSnapshot] = await Promise.all([
+            adminDb.collection('users').orderBy('createdAt', 'desc').get(),
+            adminDb.collection('openHouses').orderBy('createdAt', 'desc').get(),
+            adminDb.collection('feedbackForms').where('type', '==', 'global').get(),
+            adminDb.collection('settings').doc('appDefaults').get(),
+            adminDb.collection('gifts').orderBy('createdAt', 'desc').get()
+        ]);
+        
+        // Process Users
+        const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as User);
+        const newUsers7Days = usersData.filter(u => u.createdAt && u.createdAt.toDate() >= sevenDaysAgo.toDate()).length;
+
+        // Process Open Houses
+        const openHousesData = housesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpenHouse));
+        const newOpenHouses7Days = openHousesData.filter(h => h.createdAt && h.createdAt.toDate() >= sevenDaysAgo.toDate()).length;
+        
+        // Process Gifts
+        const giftsData = giftsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
+        const newGifts7Days = giftsData.filter(g => g.createdAt && g.createdAt.toDate() >= sevenDaysAgo.toDate()).length;
+        
+        // Process Forms
+        const globalFormsData = formsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as FeedbackForm));
+        
+        // Process Settings - Provide a default empty object
+        const settingsData = settingsDocSnap.exists() ? settingsDocSnap.data() as AppSettings : { giftbit: { enabledBrands: [] } };
+
+        return serializeTimestamps({
+            stats: {
+                totalUsers: usersData.length,
+                newUsers7Days,
+                totalOpenHouses: openHousesData.length,
+                newOpenHouses7Days,
+                totalGifts: giftsData.length,
+                newGifts7Days,
+            },
+            users: usersData,
+            openHouses: openHousesData,
+            globalForms: globalFormsData,
+            appSettings: settingsData,
+        }) as AdminDashboardData;
+
+    } catch (error) {
+        console.error("Error fetching admin dashboard data:", error);
+        throw new Error("Could not fetch admin dashboard data.");
+    }
+}
+
 
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
@@ -239,3 +306,67 @@ export async function resetApplicationSettings(): Promise<{ success: boolean; me
     return { success: false, message: 'An unexpected error occurred during the settings reset.' };
   }
 }
+
+// New action to save giftbit settings
+export async function saveGiftbitSettings(enabledBrandsData: GiftbitBrand[]): Promise<{ success: boolean, message: string }> {
+    try {
+        const settings: GiftbitSettings = { enabledBrands: enabledBrandsData };
+        const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
+        await settingsDocRef.set({ giftbit: settings }, { merge: true });
+        return { success: true, message: 'Giftbit settings saved successfully!' };
+    } catch (error: any) {
+        console.error("Error saving Giftbit settings:", error);
+        return { success: false, message: 'Failed to save settings.' };
+    }
+}
+
+
+// New action for saving/creating forms
+interface SaveFormArgs {
+    formId?: string;
+    title: string;
+    questions: Question[];
+}
+export async function saveForm(args: SaveFormArgs): Promise<{ success: boolean, message: string }> {
+    try {
+        const { formId, ...formData } = args;
+        if (formId) {
+            await adminDb.collection('feedbackForms').doc(formId).update(formData);
+        } else {
+            await adminDb.collection('feedbackForms').add({
+                ...formData,
+                type: 'global',
+                createdAt: Timestamp.now(),
+            });
+        }
+        return { success: true, message: 'Form saved successfully.' };
+    } catch (error: any) {
+        console.error('Error saving form:', error);
+        return { success: false, message: 'Could not save the form.' };
+    }
+}
+
+// New action for deleting a form
+export async function deleteForm(formId: string): Promise<{ success: boolean, message: string }> {
+    try {
+        await adminDb.collection('feedbackForms').doc(formId).delete();
+        return { success: true, message: 'Form deleted successfully.' };
+    } catch (error: any) {
+        console.error('Error deleting form:', error);
+        return { success: false, message: 'Could not delete the form.' };
+    }
+}
+
+// New action for setting default form
+export async function setDefaultForm(formId: string): Promise<{ success: boolean, message: string }> {
+    try {
+        const settingsDocRef = adminDb.collection('settings').doc('appDefaults');
+        await settingsDocRef.set({ defaultGlobalFormId: formId }, { merge: true });
+        return { success: true, message: 'Default form set successfully.' };
+    } catch (error: any) {
+        console.error('Error setting default form:', error);
+        return { success: false, message: 'Could not set the default form.' };
+    }
+}
+
+    

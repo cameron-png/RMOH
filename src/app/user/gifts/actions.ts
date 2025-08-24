@@ -5,34 +5,20 @@ import { adminDb } from '@/lib/firebase/server';
 import { Gift, UserProfile, GiftbitBrand, AppSettings, OpenHouse, Transaction } from '@/lib/types';
 import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import * as z from 'zod';
 
 const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 const LOW_BALANCE_THRESHOLD = 2500; // $25 in cents
 
-
-export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBrand[] }> {
-    try {
-        const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
-        
-        if (!settingsDoc.exists()) {
-            console.log("No appDefaults document found. Returning no brands.");
-            return { brands: [] }; 
-        }
-        
-        const settings = settingsDoc.data() as AppSettings;
-        
-        // Safely access the nested enabledBrands array.
-        // This prevents errors if 'giftbit' or 'enabledBrands' doesn't exist.
-        const enabledBrands = settings?.giftbit?.enabledBrands || [];
-        
-        return { brands: enabledBrands };
-
-    } catch (error: any) {
-        console.error("Error fetching gift configuration for user:", error.message);
-        throw new Error("Could not load gift card information.");
-    }
-}
+const giftFormSchema = z.object({
+  recipientName: z.string().min(2),
+  recipientEmail: z.string().email(),
+  brandCode: z.string().min(1),
+  amount: z.string().min(1),
+  message: z.string().optional(),
+});
 
 
 async function createGiftbitGift(gift: Gift): Promise<any> {
@@ -65,13 +51,18 @@ async function createGiftbitGift(gift: Gift): Promise<any> {
     return await response.json();
 }
 
-export async function processGift(giftId: string) {
+async function processGift(giftId: string, authenticatedUserId: string) {
     const giftRef = adminDb.collection('gifts').doc(giftId);
 
     try {
         const giftDoc = await giftRef.get();
         if (!giftDoc.exists) throw new Error('Gift not found');
+        
+        // Security Check: Ensure the authenticated user owns this gift.
         const gift = { id: giftDoc.id, ...giftDoc.data() } as Gift;
+        if (gift.userId !== authenticatedUserId) {
+            throw new Error('Permission denied. You do not own this gift.');
+        }
 
         const userRef = adminDb.collection('users').doc(gift.userId);
         const userDoc = await userRef.get();
@@ -93,12 +84,17 @@ export async function processGift(giftId: string) {
 
         // Fetch brand details to get the brand name if it's not already on the gift
         const brandName = gift.brandName || (await (async () => {
-            const brandResponse = await fetch(`${GIFTBIT_BASE_URL}/brands/${gift.brandCode}`, {
-                headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` }
-            });
-            if (!brandResponse.ok) throw new Error(`Could not fetch brand details for ${gift.brandCode}`);
-            const brandData = await brandResponse.json();
-            return brandData.brand.name;
+            if (!GIFTBIT_API_KEY) return gift.brandCode;
+            try {
+                const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
+                const settings = settingsDoc.data() as AppSettings;
+                const enabledBrands = settings?.giftbit?.enabledBrands || [];
+                const selectedBrandData = enabledBrands.find((b: GiftbitBrand) => b.brand_code === gift.brandCode);
+                return selectedBrandData?.name || gift.brandCode;
+            } catch (e) {
+                console.error("Could not fetch brand name, falling back to brand code", e);
+                return gift.brandCode;
+            }
         })());
 
 
@@ -137,7 +133,6 @@ export async function processGift(giftId: string) {
             transaction.set(newTransactionRef, newTransaction);
         });
 
-
         // 4. Send email to recipient
         await sendGiftEmail({
             ...gift,
@@ -150,35 +145,111 @@ export async function processGift(giftId: string) {
         // 5. Check for low balance and send notification if needed
         const newBalance = (user.availableBalance || 0) - gift.amountInCents;
         if (newBalance < LOW_BALANCE_THRESHOLD) {
-            await sendLowBalanceEmail({ user: user, currentBalanceInCents: newBalance });
+            await sendLowBalanceEmail({ user: { ...user, id: gift.userId }, currentBalanceInCents: newBalance });
         }
-
 
     } catch (error: any) {
         console.error(`Failed to process gift ${giftId}:`, error);
-        await giftRef.update({ status: 'Failed' });
+        await giftRef.update({ status: 'Failed', claimUrl: null }); // Ensure claimUrl is cleared on failure
+        // Re-throw the error to be caught by the calling function
+        throw error;
+    }
+}
+
+interface SendManualGiftParams extends z.infer<typeof giftFormSchema> {
+    userId: string;
+}
+
+export async function sendManualGift(params: SendManualGiftParams): Promise<{ success: boolean; message?: string; }> {
+    const { userId, ...giftData } = params;
+
+    if (!userId) {
+        return { success: false, message: "User not authenticated." };
+    }
+
+    try {
+        const giftId = uuidv4();
+        const giftRef = adminDb.collection('gifts').doc(giftId);
+
+        const userRef = adminDb.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) throw new Error('User profile not found');
+        const user = {id: userDoc.id, ...userDoc.data()} as UserProfile;
+
+        const amountInCents = Math.round(parseFloat(giftData.amount) * 100);
+
+        if ((user.availableBalance || 0) < amountInCents) {
+            return { success: false, message: 'Insufficient funds.' };
+        }
+        
+        const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
+        const settings = settingsDoc.data() as AppSettings;
+        const enabledBrands = settings?.giftbit?.enabledBrands || [];
+        const selectedBrandData = enabledBrands.find((b: GiftbitBrand) => b.brand_code === giftData.brandCode);
+
+        const newGift: Gift = {
+            id: giftId,
+            userId: userId,
+            recipientName: giftData.recipientName,
+            recipientEmail: giftData.recipientEmail,
+            brandCode: giftData.brandCode,
+            brandName: selectedBrandData?.name || giftData.brandCode,
+            amountInCents: amountInCents,
+            message: giftData.message,
+            type: 'Manual',
+            status: 'Pending', // Start as pending, processGift will update it
+            claimUrl: null,
+            createdAt: Timestamp.now(),
+        };
+
+        // Create the gift document in Firestore first
+        await giftRef.set(newGift);
+
+        // Now, process the gift immediately, passing the authenticated user's ID
+        await processGift(giftId, userId);
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error in sendManualGift server action:", error);
+        return { success: false, message: error.message || 'An unexpected error occurred.' };
     }
 }
 
 
-export async function confirmPendingGift(giftId: string): Promise<{ success: boolean, message?: string }> {
-  try {
-    // We don't need to check balance here, `processGift` does it securely.
-    await processGift(giftId);
-    return { success: true };
-  } catch (error: any) {
-    console.error(`Error confirming gift ${giftId}:`, error);
-    return { success: false, message: error.message || 'An unexpected error occurred.' };
-  }
+export async function confirmPendingGift(giftId: string, userId: string): Promise<{ success: boolean, message?: string }> {
+    if (!userId) {
+        return { success: false, message: "User not authenticated." };
+    }
+    
+    try {
+        // The processGift function will handle checking if the user owns the gift.
+        await processGift(giftId, userId);
+        return { success: true };
+    } catch (error: any) {
+        console.error(`Error confirming gift ${giftId}:`, error);
+        return { success: false, message: error.message || 'An unexpected error occurred.' };
+    }
 }
 
-export async function declinePendingGift(giftId: string): Promise<{ success: boolean, message?: string }> {
-  try {
-    const giftRef = adminDb.collection('gifts').doc(giftId);
-    await giftRef.update({ status: 'Cancelled' });
-    return { success: true };
-  } catch (error: any) {
-    console.error(`Error declining gift ${giftId}:`, error);
-    return { success: false, message: 'Failed to decline the gift.' };
-  }
+export async function declinePendingGift(giftId: string, userId: string): Promise<{ success: boolean, message?: string }> {
+     if (!userId) {
+        return { success: false, message: "User not authenticated." };
+    }
+    
+    try {
+        const giftRef = adminDb.collection('gifts').doc(giftId);
+        const giftDoc = await giftRef.get();
+        
+        // Security check to ensure the user owns the gift they are declining
+        if (!giftDoc.exists || giftDoc.data()?.userId !== userId) {
+            return { success: false, message: "Gift not found or permission denied." };
+        }
+        
+        await giftRef.update({ status: 'Cancelled' });
+        return { success: true };
+    } catch (error: any) {
+        console.error(`Error declining gift ${giftId}:`, error);
+        return { success: false, message: 'Failed to decline the gift.' };
+    }
 }

@@ -101,6 +101,17 @@ export default function VisitorFeedbackPage() {
     }
 
     try {
+        // Fetch Realtor's public profile first
+        const userDocRef = doc(db, 'users', userId);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+            setRealtor({ id: userDocSnap.id, ...userDocSnap.data() } as UserProfile);
+        } else {
+             setError("This agent does not have an active profile.");
+             setLoading(false);
+             return;
+        }
+
         // Find the active open house for this user
         const activeHouseQuery = query(
             collection(db, 'openHouses'),
@@ -112,25 +123,12 @@ export default function VisitorFeedbackPage() {
 
         if (activeHouseSnapshot.empty) {
             setError("This agent does not have an active open house at this time.");
-            const userDocRef = doc(db, 'users', userId);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-                setRealtor(userDocSnap.data() as UserProfile);
-            }
             setLoading(false);
             return;
         }
 
         const houseData = { id: activeHouseSnapshot.docs[0].id, ...activeHouseSnapshot.docs[0].data() } as OpenHouse;
         setActiveHouse(houseData);
-        
-        // Fetch Realtor's public profile
-        const userDocRef = doc(db, 'users', userId);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-            const realtorData = userDocSnap.data() as UserProfile;
-            setRealtor(realtorData);
-        }
         
         if (houseData.feedbackFormId) {
             const formDocRef = doc(db, 'feedbackForms', houseData.feedbackFormId);
@@ -394,11 +392,11 @@ export default function VisitorFeedbackPage() {
         : 'a small gift';
         
     return (
-        <div className="bg-yellow-100/60 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800/60 rounded-lg p-3 flex items-center gap-4">
+        <div className="bg-green-100/60 dark:bg-green-950/40 border border-green-200 dark:border-green-800/60 rounded-lg p-3 flex items-center gap-4">
             <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
-                <GiftIcon className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+                <GiftIcon className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            <p className="text-sm text-green-800 dark:text-green-200">
                 Provide your feedback and receive {giftAmountText} as a thank you!
             </p>
         </div>

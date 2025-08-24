@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import { UserProfile, Lead, OpenHouse } from './lib/types';
+import { UserProfile, Lead, OpenHouse } from '@/lib/types';
 import { _sendNewLeadEmail } from '@/lib/email';
 
 interface SendNewLeadEmailParams {
@@ -42,5 +42,3 @@ export async function sendNewLeadEmail({ realtorId, leadId }: SendNewLeadEmailPa
         return { success: false, error: error.message };
     }
 }
-
-    

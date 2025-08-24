@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Gift, GiftbitBrand, OpenHouse } from '@/lib/types';
+import { Gift, GiftbitBrand, OpenHouse, AppSettings } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,11 +18,11 @@ import { Button } from '@/components/ui/button';
 import { Copy, Gift as GiftIcon, PlusCircle, Loader2, Settings, Info, ExternalLink, ThumbsUp, ThumbsDown, Home, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getGiftConfigurationForUser, confirmPendingGift, declinePendingGift } from './actions';
+import { confirmPendingGift, declinePendingGift, sendManualGift } from './actions';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 const giftFormSchema = z.object({
   recipientName: z.string().min(2, "Please enter the recipient's name."),
   recipientEmail: z.string().email("Please enter a valid email address."),
-  brand: z.string().min(1, "Please select a brand."),
+  brandCode: z.string().min(1, "Please select a brand."),
   amount: z.string().min(1, "Please enter an amount."),
   message: z.string().optional(),
 });
@@ -46,36 +46,26 @@ export default function GiftsPage() {
   
   const [enabledBrands, setEnabledBrands] = useState<GiftbitBrand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
-  const [selectedBrand, setSelectedBrand] = useState<GiftbitBrand | null>(null);
 
   const [giftToConfirm, setGiftToConfirm] = useState<Gift | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
   const [giftToDecline, setGiftToDecline] = useState<Gift | null>(null);
   const [isDeclining, setIsDeclining] = useState(false);
-  
-  const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
-  const [giftDataToCreate, setGiftDataToCreate] = useState<z.infer<typeof giftFormSchema> | null>(null);
 
+  const [customAmount, setCustomAmount] = useState('');
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
 
   const form = useForm<z.infer<typeof giftFormSchema>>({
     resolver: zodResolver(giftFormSchema),
     defaultValues: {
       recipientName: '',
       recipientEmail: '',
-      brand: '',
+      brandCode: '',
       amount: '',
       message: '',
     },
   });
-  
-  const handleBrandChange = (brandCode: string) => {
-    const brand = enabledBrands.find(b => b.brand_code === brandCode);
-    setSelectedBrand(brand || null);
-    form.setValue('brand', brandCode);
-    form.setValue('amount', ''); // Reset amount when brand changes
-    form.clearErrors('amount');
-  };
 
   const fetchGiftsAndHouses = useCallback(() => {
     if (!user) return;
@@ -95,7 +85,7 @@ export default function GiftsPage() {
         const houseIds = [...new Set(giftsData.map(g => g.openHouseId).filter(Boolean))];
         if (houseIds.length > 0) {
             const housesQuery = query(collection(db, 'openHouses'), where('userId', '==', user.uid));
-            const housesSnapshot = await onSnapshot(housesQuery, (snapshot) => {
+            onSnapshot(housesQuery, (snapshot) => {
               const housesMap = new Map<string, OpenHouse>();
               snapshot.forEach(doc => housesMap.set(doc.id, { id: doc.id, ...doc.data()} as OpenHouse));
               setOpenHouses(housesMap);
@@ -128,8 +118,15 @@ export default function GiftsPage() {
       if (!user) return;
       setLoadingBrands(true);
       try {
-        const { brands } = await getGiftConfigurationForUser();
-        setEnabledBrands(brands);
+        const settingsDocRef = doc(db, 'settings', 'appDefaults');
+        const settingsDocSnap = await getDoc(settingsDocRef);
+        if (settingsDocSnap.exists()) {
+            const settings = settingsDocSnap.data() as AppSettings;
+            const brands = settings?.giftbit?.enabledBrands || [];
+            setEnabledBrands(brands);
+        } else {
+            setEnabledBrands([]);
+        }
       } catch (error) {
         console.error(error);
         toast({
@@ -159,9 +156,40 @@ export default function GiftsPage() {
       currency: 'USD',
     }).format(amountInCents / 100);
   };
+
+  const handleAmountSelect = (amount: string) => {
+    form.setValue('amount', amount);
+    setShowCustomAmount(false);
+  };
+  
+  const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    const parts = numericValue.split('.');
+    
+    let formattedValue = numericValue;
+
+    if (parts[0]) {
+        formattedValue = `$${parts[0]}`;
+    }
+    if (parts[1]) {
+        formattedValue += `.${parts[1].substring(0, 2)}`;
+    }
+    
+    setCustomAmount(formattedValue);
+    form.setValue('amount', parts.join('.'));
+  }
   
   async function onSubmit(values: z.infer<typeof giftFormSchema>) {
-    const amountInCents = Math.round(parseFloat(values.amount) * 100);
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Authentication Error',
+            description: 'Could not find user information. Please try again.',
+        });
+        return;
+    }
+    const amountInCents = Math.round(parseFloat(values.amount.replace(/[^0-9.]/g, '')) * 100);
         
     if (typeof availableBalance === 'undefined' || availableBalance < amountInCents) {
         toast({
@@ -172,59 +200,34 @@ export default function GiftsPage() {
         return;
     }
 
-    setGiftDataToCreate(values);
-    setIsCreateConfirmOpen(true);
-  }
-  
-  const handleConfirmCreateGift = async () => {
-    if (!user || !giftDataToCreate) return;
-    
     try {
-        const selectedBrandData = enabledBrands.find(b => b.brand_code === giftDataToCreate.brand);
-        const newGiftData: Omit<Gift, 'id'> = {
-            userId: user.uid,
-            recipientName: giftDataToCreate.recipientName,
-            recipientEmail: giftDataToCreate.recipientEmail,
-            brandCode: giftDataToCreate.brand,
-            brandName: selectedBrandData?.name,
-            amountInCents: Math.round(parseFloat(giftDataToCreate.amount) * 100),
-            message: giftDataToCreate.message,
-            type: 'Manual',
-            status: 'Pending' as const,
-            claimUrl: null,
-            createdAt: Timestamp.now(),
-        };
-
-        const docRef = await addDoc(collection(db, "gifts"), newGiftData);
-
-        toast({
-            title: 'Gift Queued',
-            description: 'Your gift is being processed and will appear in the log.',
-        });
-        
-        setIsFormOpen(false);
-        form.reset();
-        setSelectedBrand(null);
-        
-        // Directly process the gift
-        await confirmPendingGift(docRef.id);
-        await refreshUserData();
-
+        const result = await sendManualGift({...values, userId: user.uid, amount: (amountInCents / 100).toString()});
+        if (result.success) {
+            toast({
+                title: 'Gift Sent!',
+                description: `Your gift to ${values.recipientName} has been sent.`,
+            });
+            await refreshUserData();
+            setIsFormOpen(false);
+            form.reset();
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Gift Failed',
+                description: result.message || 'An unexpected error occurred.',
+            });
+        }
     } catch (error: any) {
          toast({
             variant: 'destructive',
             title: 'Error',
             description: 'Could not create the gift. Please try again.',
         });
-    } finally {
-        setIsCreateConfirmOpen(false);
-        setGiftDataToCreate(null);
     }
   }
 
-
   const handleConfirmGift = async () => {
-    if (!giftToConfirm) return;
+    if (!giftToConfirm || !user) return;
 
     if ((availableBalance || 0) < giftToConfirm.amountInCents) {
       toast({
@@ -238,9 +241,13 @@ export default function GiftsPage() {
 
     setIsConfirming(true);
     try {
-      await confirmPendingGift(giftToConfirm.id);
-      toast({ title: 'Gift Confirmed', description: 'The gift is being sent to the recipient.' });
-      await refreshUserData();
+      const result = await confirmPendingGift(giftToConfirm.id, user.uid);
+       if (result.success) {
+          toast({ title: 'Gift Confirmed', description: 'The gift is being sent to the recipient.' });
+          await refreshUserData();
+       } else {
+           toast({ variant: 'destructive', title: 'Confirmation Failed', description: result.message });
+       }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Confirmation Failed', description: error.message });
     } finally {
@@ -250,11 +257,15 @@ export default function GiftsPage() {
   };
 
   const handleDeclineGift = async () => {
-    if (!giftToDecline) return;
+    if (!giftToDecline || !user) return;
     setIsDeclining(true);
     try {
-      await declinePendingGift(giftToDecline.id);
-      toast({ title: 'Gift Declined', description: 'The pending gift has been cancelled.' });
+      const result = await declinePendingGift(giftToDecline.id, user.uid);
+       if (result.success) {
+            toast({ title: 'Gift Declined', description: 'The pending gift has been cancelled.' });
+       } else {
+           toast({ variant: 'destructive', title: 'Decline Failed', description: result.message });
+       }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Decline Failed', description: error.message });
     } finally {
@@ -277,7 +288,8 @@ export default function GiftsPage() {
                  setIsFormOpen(isOpen);
                  if (!isOpen) {
                      form.reset();
-                     setSelectedBrand(null);
+                     setShowCustomAmount(false);
+                     setCustomAmount('');
                  }
              }}>
                 <DialogTrigger asChild>
@@ -318,11 +330,11 @@ export default function GiftsPage() {
                             />
                             <FormField
                                 control={form.control}
-                                name="brand"
+                                name="brandCode"
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Brand</FormLabel>
-                                    <Select onValueChange={handleBrandChange} disabled={loadingBrands} value={field.value}>
+                                    <Select onValueChange={field.onChange} disabled={loadingBrands} value={field.value}>
                                         <FormControl>
                                             <SelectTrigger>
                                             <SelectValue placeholder={loadingBrands ? "Loading brands..." : "Select a brand..."} />
@@ -348,21 +360,34 @@ export default function GiftsPage() {
                                 </FormItem>
                                 )}
                             />
-                            <FormField
+                             <FormField
                                 control={form.control}
                                 name="amount"
                                 render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Amount</FormLabel>
-                                    <FormControl>
-                                        <Input 
-                                            type="number" 
-                                            placeholder="Enter amount in dollars, e.g., 25.00" 
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
+                                    <FormItem>
+                                        <FormLabel>Amount</FormLabel>
+                                        <div className="flex gap-2 items-center">
+                                            {['5', '10', '15'].map(val => (
+                                                <Button key={val} type="button" variant={field.value === val && !showCustomAmount ? 'default' : 'outline'} onClick={() => handleAmountSelect(val)}>${val}</Button>
+                                            ))}
+                                            <Button type="button" variant={showCustomAmount ? 'default' : 'outline'} onClick={() => {
+                                                setShowCustomAmount(true);
+                                                form.setValue('amount', '');
+                                                setCustomAmount('');
+                                            }}>Custom</Button>
+                                        </div>
+                                         {showCustomAmount && (
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="$0.00"
+                                                    value={customAmount}
+                                                    onChange={handleCustomAmountChange}
+                                                    className="mt-2"
+                                                />
+                                            </FormControl>
+                                         )}
+                                        <FormMessage />
+                                    </FormItem>
                                 )}
                             />
                              <FormField
@@ -550,23 +575,6 @@ export default function GiftsPage() {
             </CardContent>
         </Card>
     </div>
-
-    <AlertDialog open={isCreateConfirmOpen} onOpenChange={setIsCreateConfirmOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Confirm New Gift</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This will send a {giftDataToCreate ? formatCurrency(Math.round(parseFloat(giftDataToCreate.amount) * 100)) : ''} gift to {giftDataToCreate?.recipientName} and deduct the cost from your account balance.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsCreateConfirmOpen(false)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmCreateGift} disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? "Sending..." : "Yes, Send Gift"}
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
     
     <AlertDialog open={!!giftToConfirm} onOpenChange={(open) => !open && setGiftToConfirm(null)}>
         <AlertDialogContent>
@@ -605,3 +613,5 @@ export default function GiftsPage() {
     </>
   );
 }
+
+    
