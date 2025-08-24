@@ -14,6 +14,4 @@ if (getApps().length === 0) {
 
 export const ai = genkit({
   plugins: [googleAI(), firebase()],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
 });
