@@ -5,34 +5,20 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
 function initializeAdminApp(): App {
+    // Check if the app is already initialized
     if (getApps().length > 0) {
         return getApp();
     }
 
-    // This logic allows the app to work in both the local prototyper and the deployed environment.
-    // In a deployed environment, initializeApp() automatically finds the credentials.
-    // In the local prototyper, it uses a service account key file if the path is provided
-    // via a FIREBASE_SERVICE_ACCOUNT_KEY_PATH environment variable.
-    if (process.env.NODE_ENV !== 'production' && process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH) {
-        try {
-            // The `require` syntax is used here to dynamically load the JSON file
-            // based on the environment variable path.
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH);
-            console.log("Initializing Firebase Admin SDK with local service account.");
-            return initializeApp({
-                credential: cert(serviceAccount)
-            });
-        } catch (error) {
-            console.error("Failed to initialize Firebase Admin with service account. Make sure the path is correct.", error);
-            // Fallback to default initialization if the key is invalid or not found
-            return initializeApp();
-        }
-    } else {
-        // Default initialization for deployed environments like Firebase App Hosting
-        console.log("Initializing Firebase Admin SDK for a deployed environment.");
-        return initializeApp();
-    }
+    // If not initialized, initialize it.
+    // In a deployed Firebase environment (like App Hosting), Google automatically provides
+    // the necessary configuration, and initializeApp() works without arguments.
+    // For local development (like the Prototyper), the GOOGLE_APPLICATION_CREDENTIALS
+    // environment variable should be set to the path of your service account key file.
+    // The Firebase CLI and Prototyper often handle this for you.
+    // This simplified approach is more robust and less error-prone than manual credential handling.
+    console.log("Initializing Firebase Admin SDK...");
+    return initializeApp();
 }
 
 const adminApp = initializeAdminApp();
