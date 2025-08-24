@@ -18,7 +18,7 @@ function serializeTimestamps(obj: any): any {
         return obj.map(serializeTimestamps);
     }
     if (typeof obj === 'object') {
-        const newObj: { [key:string]: any } = {};
+        const newObj: { [key: string]: any } = {};
         for (const key in obj) {
             newObj[key] = serializeTimestamps(obj[key]);
         }
@@ -34,7 +34,8 @@ const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
 
 export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBrand[] }> {
     if (!GIFTBIT_API_KEY) {
-        throw new Error('GIFTBIT_API_KEY is not configured on the server.');
+        console.log('GIFTBIT_API_KEY is not configured on the server.');
+        return { brands: [] };
     }
 
     try {
@@ -48,7 +49,8 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
                 status: brandsResponse.status,
                 body: await brandsResponse.text()
             });
-            throw new Error('Failed to fetch brand data from Giftbit.');
+            // Return empty instead of throwing to prevent page crash
+            return { brands: [] };
         }
 
         const brandsData = await brandsResponse.json();
@@ -62,7 +64,8 @@ export async function getAvailableGiftbitBrands(): Promise<{ brands: GiftbitBran
         };
     } catch (error: any) {
         console.error('Error fetching from Giftbit:', error.message);
-        throw new Error('Could not retrieve Giftbit data.');
+        // Return empty instead of throwing to prevent page crash
+        return { brands: [] };
     }
 }
 
