@@ -18,8 +18,13 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
     
     try {
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
-        const settings = settingsDoc.data() as AppSettings;
+        const settings = settingsDoc.exists() ? settingsDoc.data() as AppSettings : {};
         const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
+
+        // If no brands are enabled in settings, return an empty array.
+        if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
+            return { brands: [] };
+        }
 
         const brandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
             headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
@@ -34,20 +39,10 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
         const brandsData = await brandsResponse.json();
         const allBrands: GiftbitBrand[] = brandsData.brands || [];
         
-        const usBrands = allBrands.filter(brand => brand.region_codes.includes('us'));
-
-        if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
-            return { brands: usBrands };
-        }
-
-        const enabledBrands = usBrands.filter((brand) => 
-            enabledBrandCodes.includes(brand.brand_code)
-        );
-        
-        // Failsafe: If the filtering results in an empty list because of stale settings, return all US brands.
-        if (enabledBrands.length === 0) {
-            return { brands: usBrands };
-        }
+        // Filter all brands by region and then by what's enabled.
+        const enabledBrands = allBrands
+            .filter(brand => brand.region_codes.includes('us'))
+            .filter(brand => enabledBrandCodes.includes(brand.brand_code));
         
         return { brands: enabledBrands };
     } catch (error: any) {
