@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -148,7 +149,7 @@ export default function AdminPage() {
       // Process Settings
       const settingsData = settingsDocSnap.exists() ? settingsDocSnap.data() as AppSettings : {};
       setAppSettings(settingsData);
-      setEnabledBrandCodes(settingsData.giftbit?.enabledBrandCodes || []);
+      setEnabledBrandCodes(settingsData.giftbit?.enabledBrands?.map(b => b.brand_code) || []);
       
       // Fetch external Giftbit data
       getAvailableGiftbitBrands().then(({ brands }) => {
@@ -309,7 +310,8 @@ export default function AdminPage() {
   const handleSaveGiftbitSettings = async () => {
     setIsSavingGiftbit(true);
     try {
-        const settings: GiftbitSettings = { enabledBrandCodes };
+        const enabledBrands = allBrands.filter(b => enabledBrandCodes.includes(b.brand_code));
+        const settings: GiftbitSettings = { enabledBrands };
         const settingsDocRef = doc(db, 'settings', 'appDefaults');
         await setDoc(settingsDocRef, { giftbit: settings }, { merge: true });
         toast({ title: "Giftbit settings saved successfully!" });

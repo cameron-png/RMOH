@@ -18,29 +18,12 @@ export async function getGiftConfigurationForUser(): Promise<{ brands: GiftbitBr
     
     try {
         const settingsDoc = await adminDb.collection('settings').doc('appDefaults').get();
-        const settings = settingsDoc.exists() ? settingsDoc.data() as AppSettings : {};
-        const enabledBrandCodes = settings?.giftbit?.enabledBrandCodes;
-
-        // If no brands are enabled in settings, return an empty array.
-        if (!enabledBrandCodes || enabledBrandCodes.length === 0) {
+        if (!settingsDoc.exists) {
             return { brands: [] };
         }
-
-        const brandsResponse = await fetch(`${GIFTBIT_BASE_URL}/brands?limit=500`, {
-            headers: { 'Authorization': `Bearer ${GIFTBIT_API_KEY}` },
-            next: { revalidate: 3600 }
-        });
-
-        if (!brandsResponse.ok) {
-            console.error(`Giftbit API Error (Brands: ${brandsResponse.status})`);
-            throw new Error('Failed to fetch data from Giftbit.');
-        }
         
-        const brandsData = await brandsResponse.json();
-        const allBrands: GiftbitBrand[] = brandsData.brands || [];
-        
-        // Filter all brands by what's enabled in the admin settings.
-        const enabledBrands = allBrands.filter(brand => enabledBrandCodes.includes(brand.brand_code));
+        const settings = settingsDoc.data() as AppSettings;
+        const enabledBrands = settings?.giftbit?.enabledBrands || [];
         
         return { brands: enabledBrands };
     } catch (error: any) {
