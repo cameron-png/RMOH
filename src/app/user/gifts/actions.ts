@@ -7,6 +7,7 @@ import { sendGiftEmail, sendLowBalanceEmail } from '@/lib/email';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import * as z from 'zod';
+import { serializeTimestamps } from '@/app/admin/actions';
 
 const GIFTBIT_API_KEY = process.env.GIFTBIT_API_KEY;
 const GIFTBIT_BASE_URL = 'https://api-testbed.giftbit.com/papi/v1';
@@ -159,7 +160,7 @@ interface SendManualGiftParams extends z.infer<typeof giftFormSchema> {
     userId: string;
 }
 
-export async function sendManualGift(params: SendManualGiftParams): Promise<{ success: boolean; message?: string; }> {
+export async function sendManualGift(params: SendManualGiftParams): Promise<{ success: boolean; message?: string; gift?: Gift }> {
     const { userId, ...giftData } = params;
 
     if (!userId) {
@@ -204,10 +205,7 @@ export async function sendManualGift(params: SendManualGiftParams): Promise<{ su
         // Create the gift document in Firestore first
         await giftRef.set(newGift);
 
-        // Now, process the gift immediately, passing the authenticated user's ID
-        await processGift(giftId, userId);
-
-        return { success: true };
+        return { success: true, gift: serializeTimestamps(newGift) };
 
     } catch (error: any) {
         console.error("Error in sendManualGift server action:", error);
@@ -252,3 +250,5 @@ export async function declinePendingGift(giftId: string, userId: string): Promis
         return { success: false, message: 'Failed to decline the gift.' };
     }
 }
+
+    

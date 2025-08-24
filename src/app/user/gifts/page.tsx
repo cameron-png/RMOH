@@ -202,14 +202,11 @@ export default function GiftsPage() {
 
     try {
         const result = await sendManualGift({...values, userId: user.uid, amount: (amountInCents / 100).toString()});
-        if (result.success) {
-            toast({
-                title: 'Gift Sent!',
-                description: `Your gift to ${values.recipientName} has been sent.`,
-            });
-            await refreshUserData();
-            setIsFormOpen(false);
+        
+        if (result.success && result.gift) {
+            setIsFormOpen(false); // Close the creation form
             form.reset();
+            setGiftToConfirm(result.gift); // Open the confirmation dialog
         } else {
             toast({
                 variant: 'destructive',
@@ -407,7 +404,7 @@ export default function GiftsPage() {
                                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={form.formState.isSubmitting}>
                                      <Send className="mr-2 h-4 w-4" />
-                                    {form.formState.isSubmitting ? 'Sending...' : 'Send Gift'}
+                                    {form.formState.isSubmitting ? 'Creating...' : 'Create Gift'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -613,5 +610,7 @@ export default function GiftsPage() {
     </>
   );
 }
+
+    
 
     

@@ -1,8 +1,4 @@
 {
-  "/api/auth/login/route": "app/api/auth/login/route.js",
   "/page": "app/page.js",
-  "/v/[userId]/page": "app/v/[userId]/page.js",
-  "/user/gifts/page": "app/user/gifts/page.js",
-  "/admin/page": "app/admin/page.js",
-  "/user/dashboard/page": "app/user/dashboard/page.js"
+  "/user/gifts/page": "app/user/gifts/page.js"
 }
